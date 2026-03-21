@@ -58,7 +58,7 @@ class Sync:
     def delete_user(self, dn: str) -> None:
         self.get_ldap_connection().delete(dn)
         
-        if self.get_ldap_connection().result["result"] == 0:
+        if self.is_ldap_successful():
             print(f"Deleted user {dn}")
         else:
             raise LdapConnectionError(f"Error deleting user {dn}: {self.get_ldap_result_description()}")
@@ -72,7 +72,7 @@ class Sync:
     def modify_user_uac(self, dn: str, uac: UserAccountControl):
         self.get_ldap_connection().modify(dn, {"userAccountControl": [(MODIFY_REPLACE, [int(uac)])]})
 
-        if self.get_ldap_connection().result["result"] == 0:
+        if self.is_ldap_successful():
             print(f"Modified user {dn} with UAC {uac}")
         else:
             raise LdapConnectionError(f"Error modifying user {dn}: {self.get_ldap_result_description()}")
@@ -86,7 +86,7 @@ class Sync:
     def delete_group(self, dn: str) -> None:
         self.get_ldap_connection().delete(dn)
         
-        if self.get_ldap_connection().result["result"] == 0:
+        if self.is_ldap_successful():
             print(f"Deleted group {dn}")
         else:
             raise LdapConnectionError(f"Error deleting group {dn}: {self.get_ldap_result_description()}")
@@ -94,7 +94,7 @@ class Sync:
     def add_to_group(self, group_member_dn: str, group_dn: str) -> None:
         self.get_ldap_connection().modify(group_dn, {"member": [(MODIFY_ADD, [group_member_dn])]})
 
-        if self.get_ldap_connection().result["result"] == 0:
+        if self.is_ldap_successful():
             print(f"Added {group_member_dn} to group {group_dn}")
         else:
             raise LdapConnectionError(f"Error adding {group_member_dn} to group {group_dn}: {self.get_ldap_result_description()}")
@@ -102,13 +102,16 @@ class Sync:
     def remove_from_group(self, group_member_dn: str, group_dn: str) -> None:
         self.get_ldap_connection().modify(group_dn, {"member": [(MODIFY_REPLACE, [group_member_dn])]})
 
-        if self.get_ldap_connection().result["result"] == 0:
+        if self.is_ldap_successful():
             print(f"Removed {group_member_dn} from group {group_dn}")
         else:
             raise LdapConnectionError(f"Error removing {group_member_dn} from group {group_dn}: {self.get_ldap_result_description()}")
         
     def get_ldap_result_description(self)-> str:
         return self.get_ldap_connection().result["description"]
+    
+    def is_ldap_successful(self) -> bool:
+        return self.get_ldap_connection().result["result"] == 0
 
 
 class LdapConnectionError(Exception):
