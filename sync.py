@@ -2,11 +2,12 @@ import os
 
 from dotenv import load_dotenv
 import ldap3.core.exceptions
-from ldap3 import Server, ALL, MODIFY_REPLACE
+from ldap3 import Server, ALL, MODIFY_ADD, MODIFY_REPLACE
 from ldap3 import Connection as LdapConnection
 from ldap3.core.tls import Tls
 import ssl
 
+from models.group import Group
 from models.user import User
 from models.user_account_control import UserAccountControl
 
@@ -67,7 +68,28 @@ class Sync:
             print(f"Modified user {dn} with UAC {uac}")
         else:
             raise LdapConnectionError(f"Error modifying user {dn}: {self.get_ldap_connection().result}")
+        
+    def create_group(self, group: Group) -> None:
+        if self.get_ldap_connection().add(group.dn, attributes=group.to_ldap()):
+            print(f"Created group {group.dn}")
+        else:
+            raise LdapConnectionError(f"Error creating group {group.dn}: {self.get_ldap_connection().result}")
+        
+    def add_to_group(self, group_member_dn: str, group_dn: str) -> None:
+        self.get_ldap_connection().modify(group_dn, {"member": [(MODIFY_ADD, [group_member_dn])]})
 
+        if self.get_ldap_connection().result["result"] == 0:
+            print(f"Added {group_member_dn} to group {group_dn}")
+        else:
+            raise LdapConnectionError(f"Error adding {group_member_dn} to group {group_dn}: {self.get_ldap_connection().result}")
+
+    def remove_from_group(self, group_member_dn: str, group_dn: str) -> None:
+        self.get_ldap_connection().modify(group_dn, {"member": [(MODIFY_REPLACE, [group_member_dn])]})
+
+        if self.get_ldap_connection().result["result"] == 0:
+            print(f"Removed {group_member_dn} from group {group_dn}")
+        else:
+            raise LdapConnectionError(f"Error removing {group_member_dn} from group {group_dn}: {self.get_ldap_connection().result}")
 
 class LdapConnectionError(Exception):
     pass
