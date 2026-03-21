@@ -6,13 +6,13 @@ from models.group_type import GroupType
 @dataclass
 class Group:
     name: str
-    groups_ou: str
+    ou: str
     congressus_id: int
-    description: str = ''
+    description: str
 
     @property
     def dn(self) -> str:
-        return f'CN={self.name},{self.groups_ou}'
+        return f'CN={self.name},{self.ou}'
 
     def to_ldap(self) -> dict:
         return {
