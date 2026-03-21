@@ -9,17 +9,17 @@ class User:
     first_name: str
     last_name: str
     password: str
-    organizational_unit: str
+    ou: str
 
     @property
     def dn(self) -> str:
-        return f'CN={self.username},{self.organizational_unit}'
+        return f'CN={self.username},{self.ou}'
 
     @property
     def encoded_password(self) -> bytes:
         return (f'"{self.password}"').encode('utf-16-le')
 
-    def to_ldap(self) -> dict:
+    def to_ldap_entry(self) -> dict:
         return {
             'cn':                 self.username,
             'sn':                 self.last_name,

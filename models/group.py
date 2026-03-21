@@ -14,7 +14,7 @@ class Group:
     def dn(self) -> str:
         return f'CN={self.name},{self.ou}'
 
-    def to_ldap(self) -> dict:
+    def to_ldap_entry(self) -> dict:
         return {
             'cn':               self.name,
             'objectClass':      ['top', 'group'],
