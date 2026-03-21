@@ -50,14 +50,14 @@ class Sync:
         return self._ldap_connection
 
     def create_user(self, user: User) -> None:
-        if self.get_ldap_connection().add(user.dn, attributes=user.to_ldap_entry()):
+        if self.get_ldap_connection().add(user.dn, attributes=user.serialize()):
             print(f"Created user {user.dn}")
         else:
             raise LdapConnectionError(f"Error creating user {user.dn}: {self.get_ldap_result_description()}")
-        
+
     def delete_user(self, dn: str) -> None:
         self.get_ldap_connection().delete(dn)
-        
+
         if self.is_ldap_successful():
             print(f"Deleted user {dn}")
         else:
@@ -76,16 +76,16 @@ class Sync:
             print(f"Modified user {dn} with UAC {uac}")
         else:
             raise LdapConnectionError(f"Error modifying user {dn}: {self.get_ldap_result_description()}")
-        
+
     def create_group(self, group: Group) -> None:
-        if self.get_ldap_connection().add(group.dn, attributes=group.to_ldap_entry()):
+        if self.get_ldap_connection().add(group.dn, attributes=group.serialize()):
             print(f"Created group {group.dn}")
         else:
             raise LdapConnectionError(f"Error creating group {group.dn}: {self.get_ldap_result_description()}")
-        
+
     def delete_group(self, dn: str) -> None:
         self.get_ldap_connection().delete(dn)
-        
+
         if self.is_ldap_successful():
             print(f"Deleted group {dn}")
         else:
@@ -97,7 +97,9 @@ class Sync:
         if self.is_ldap_successful():
             print(f"Added {group_member_dn} to group {group_dn}")
         else:
-            raise LdapConnectionError(f"Error adding {group_member_dn} to group {group_dn}: {self.get_ldap_result_description()}")
+            raise LdapConnectionError(
+                f"Error adding {group_member_dn} to group {group_dn}: {self.get_ldap_result_description()}"
+            )
 
     def remove_from_group(self, group_member_dn: str, group_dn: str) -> None:
         self.get_ldap_connection().modify(group_dn, {"member": [(MODIFY_REPLACE, [group_member_dn])]})
@@ -105,11 +107,13 @@ class Sync:
         if self.is_ldap_successful():
             print(f"Removed {group_member_dn} from group {group_dn}")
         else:
-            raise LdapConnectionError(f"Error removing {group_member_dn} from group {group_dn}: {self.get_ldap_result_description()}")
-        
-    def get_ldap_result_description(self)-> str:
+            raise LdapConnectionError(
+                f"Error removing {group_member_dn} from group {group_dn}: {self.get_ldap_result_description()}"
+            )
+
+    def get_ldap_result_description(self) -> str:
         return self.get_ldap_connection().result["description"]
-    
+
     def is_ldap_successful(self) -> bool:
         return self.get_ldap_connection().result["result"] == 0
 
@@ -122,39 +126,29 @@ def main():
     load_dotenv()
 
     member = User(
-        username="s2191229",
+        cn="s2191229",
         first_name="Nathan",
         last_name="Emanuel",
         password="P@ssword2026!",
-        ou=os.environ['MEMBERS_OU'],
+        ou=os.environ["MEMBERS_OU"],
     )
-    
+
     committee = Group(
-        name="Test Committee",
-        ou=os.environ['COMMITTEES_OU'],
+        cn="Test Committee",
+        ou=os.environ["COMMITTEES_OU"],
         congressus_id=12345,
         description="This is a test committee.",
     )
-    
-    committee_group = Group(
-        name="Test Committee Group",
-        ou=os.environ['COMMITTEES_OU'],
-        congressus_id=123456,
-        description="This is a test committee group.",
-    )
 
     try:
-        with Sync(os.environ['ADMIN_DN'], os.environ['ADMIN_PW']) as sync:
-            # sync.create_user(member)
+        with Sync(os.environ["ADMIN_DN"], os.environ["ADMIN_PW"]) as sync:
+            sync.create_user(member)
+            sync.disable_user(member.dn)
+            sync.enable_user(member.dn)
+            sync.create_group(committee)
+            sync.add_to_group(member.dn, committee.dn)
+            sync.delete_group(committee.dn)
             sync.delete_user(member.dn)
-            # sync.disable_user(member.dn)
-            # sync.enable_user(member.dn)
-            # sync.create_group(committee)
-            # sync.create_group(committee_group)
-            # sync.delete_group(committee.dn)
-            # sync.delete_group(committee_group.dn)
-            # sync.add_to_group(committee.dn, committee_group.dn)
-            # sync.add_to_group(member.dn, committee.dn)
     except LdapConnectionError as e:
         print(e)
 

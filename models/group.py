@@ -1,25 +1,20 @@
 from dataclasses import dataclass
 
 from models.group_type import GroupType
+from models.ldap_entry import LdapEntry
 
 
 @dataclass
-class Group:
-    name: str
-    ou: str
+class Group(LdapEntry):
     congressus_id: int
     description: str
 
-    @property
-    def dn(self) -> str:
-        return f'CN={self.name},{self.ou}'
-
-    def to_ldap_entry(self) -> dict:
+    def serialize(self) -> dict:
         return {
-            'cn':               self.name,
-            'objectClass':      ['top', 'group'],
-            'sAMAccountName':   self.name,
-            'description':      self.description,
-            'groupType':        int(GroupType.GLOBAL_SECURITY),
-            'info':             self.congressus_id,
+            "cn": self.cn,
+            "objectClass": ["top", "group"],
+            "sAMAccountName": self.cn,
+            "description": self.description,
+            "groupType": int(GroupType.GLOBAL_SECURITY),
+            "info": self.congressus_id,
         }
