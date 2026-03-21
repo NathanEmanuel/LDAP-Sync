@@ -54,6 +54,14 @@ class Sync:
             print(f"Created user {user.dn}")
         else:
             raise LdapConnectionError(f"Error creating user {user.dn}: {self.get_ldap_result_description()}")
+        
+    def delete_user(self, dn: str) -> None:
+        self.get_ldap_connection().delete(dn)
+        
+        if self.get_ldap_connection().result["result"] == 0:
+            print(f"Deleted user {dn}")
+        else:
+            raise LdapConnectionError(f"Error deleting user {dn}: {self.get_ldap_result_description()}")
 
     def enable_user(self, dn: str) -> None:
         self.modify_user_uac(dn, UserAccountControl.NORMAL_ACCOUNT)
@@ -75,6 +83,14 @@ class Sync:
         else:
             raise LdapConnectionError(f"Error creating group {group.dn}: {self.get_ldap_result_description()}")
         
+    def delete_group(self, dn: str) -> None:
+        self.get_ldap_connection().delete(dn)
+        
+        if self.get_ldap_connection().result["result"] == 0:
+            print(f"Deleted group {dn}")
+        else:
+            raise LdapConnectionError(f"Error deleting group {dn}: {self.get_ldap_result_description()}")
+
     def add_to_group(self, group_member_dn: str, group_dn: str) -> None:
         self.get_ldap_connection().modify(group_dn, {"member": [(MODIFY_ADD, [group_member_dn])]})
 
@@ -126,11 +142,14 @@ def main():
 
     try:
         with Sync(os.environ['ADMIN_DN'], os.environ['ADMIN_PW']) as sync:
-            sync.create_user(member)
+            # sync.create_user(member)
+            sync.delete_user(member.dn)
             # sync.disable_user(member.dn)
             # sync.enable_user(member.dn)
             # sync.create_group(committee)
             # sync.create_group(committee_group)
+            # sync.delete_group(committee.dn)
+            # sync.delete_group(committee_group.dn)
             # sync.add_to_group(committee.dn, committee_group.dn)
             # sync.add_to_group(member.dn, committee.dn)
     except LdapConnectionError as e:
