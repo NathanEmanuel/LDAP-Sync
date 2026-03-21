@@ -1,0 +1,17 @@
+from enum import IntFlag
+
+
+class GroupType(IntFlag):
+    GLOBAL          = 0x00000002
+    DOMAIN_LOCAL    = 0x00000004
+    UNIVERSAL       = 0x00000008
+    SECURITY        = 0x80000000
+
+    # Common combinations
+    GLOBAL_SECURITY             = GLOBAL | SECURITY
+    DOMAIN_LOCAL_SECURITY       = DOMAIN_LOCAL | SECURITY
+    UNIVERSAL_SECURITY          = UNIVERSAL | SECURITY
+    GLOBAL_DISTRIBUTION         = GLOBAL
+    DOMAIN_LOCAL_DISTRIBUTION   = DOMAIN_LOCAL
+    UNIVERSAL_DISTRIBUTION      = UNIVERSAL
+    
