@@ -13,7 +13,7 @@ class User:
 
     @property
     def dn(self) -> str:
-        return f'CN={self.first_name} {self.last_name},{self.organizational_unit}'
+        return f'CN={self.username},{self.organizational_unit}'
 
     @property
     def encoded_password(self) -> bytes:
@@ -21,7 +21,7 @@ class User:
 
     def to_ldap(self) -> dict:
         return {
-            'cn':                 f'{self.first_name} {self.last_name}',
+            'cn':                 self.username,
             'sn':                 self.last_name,
             'givenName':          self.first_name,
             'sAMAccountName':     self.username,

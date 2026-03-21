@@ -50,20 +50,21 @@ class Sync:
 
     def create_user(self, user: User) -> None:
         if self.get_ldap_connection().add(user.dn, attributes=user.to_ldap()):
-            print(f"Created user {user.username}")
+            print(f"Created user {user.dn}")
+        else:
+            raise LdapConnectionError(f"Error creating user {user.dn}: {self.get_ldap_connection().result}")
 
-    def enable_user(self, username: str, ou: str) -> None:
-        self.modify_user_uac(username, ou, UserAccountControl.NORMAL_ACCOUNT)
+    def enable_user(self, dn: str) -> None:
+        self.modify_user_uac(dn, UserAccountControl.NORMAL_ACCOUNT)
 
-    def disable_user(self, username: str, ou: str) -> None:
-        self.modify_user_uac(username, ou, (UserAccountControl.NORMAL_ACCOUNT | UserAccountControl.ACCOUNTDISABLE))
+    def disable_user(self, dn: str) -> None:
+        self.modify_user_uac(dn, (UserAccountControl.NORMAL_ACCOUNT | UserAccountControl.ACCOUNTDISABLE))
 
-    def modify_user_uac(self, username: str, ou: str, uac: UserAccountControl):
-        dn = f"CN={username},{ou}"
+    def modify_user_uac(self, dn: str, uac: UserAccountControl):
         self.get_ldap_connection().modify(dn, {"userAccountControl": [(MODIFY_REPLACE, [int(uac)])]})
 
         if self.get_ldap_connection().result["result"] == 0:
-            print(f"Modified user {username} with UAC {uac}")
+            print(f"Modified user {dn} with UAC {uac}")
         else:
             raise LdapConnectionError(f"Error modifying user {dn}: {self.get_ldap_connection().result}")
 
@@ -83,8 +84,13 @@ def main():
         organizational_unit=os.environ['MEMBERS_OU'],
     )
 
-    with Sync(os.environ['ADMIN_DN'], os.environ['ADMIN_PW']) as sync:
-        sync.create_user(member)
+    try:
+        with Sync(os.environ['ADMIN_DN'], os.environ['ADMIN_PW']) as sync:
+            # sync.create_user(member)
+            # sync.disable_user(member.dn)
+            sync.enable_user(member.dn)
+    except LdapConnectionError as e:
+        print(e)
 
 
 if __name__ == "__main__":
