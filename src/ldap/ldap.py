@@ -7,6 +7,7 @@ from ldap3 import Server
 from ldap3.core.tls import Tls
 
 from ldap.models.group import Group
+from ldap.models.organizational_unit import OrganizationalUnit
 from ldap.models.user import User, UserAccountControl
 
 
@@ -46,6 +47,20 @@ class Ldap:
             raise LdapConnectionError("Not connected to Directory Server. Call ldap_bind() first.")
 
         return self._ldap_connection
+    
+    def create_ou(self, ou: OrganizationalUnit) -> None:
+        if self.get_ldap_connection().add(ou.dn, attributes=ou.serialize()):
+            print(f"Created OU {ou.dn}")
+        else:
+            raise LdapConnectionError(f"Error creating OU {ou.dn}: {self.get_ldap_result_description()}")
+
+    def delete_ou(self, ou: OrganizationalUnit) -> None:
+        self.get_ldap_connection().delete(ou.dn)
+
+        if self.is_ldap_successful():
+            print(f"Deleted OU {ou.dn}")
+        else:
+            raise LdapConnectionError(f"Error deleting OU {ou.dn}: {self.get_ldap_result_description()}")
 
     def create_user(self, user: User) -> None:
         if self.get_ldap_connection().add(user.dn, attributes=user.serialize()):
@@ -53,13 +68,13 @@ class Ldap:
         else:
             raise LdapConnectionError(f"Error creating user {user.dn}: {self.get_ldap_result_description()}")
 
-    def delete_user(self, dn: str) -> None:
-        self.get_ldap_connection().delete(dn)
+    def delete_user(self, user: User) -> None:
+        self.get_ldap_connection().delete(user.dn)
 
         if self.is_ldap_successful():
-            print(f"Deleted user {dn}")
+            print(f"Deleted user {user.dn}")
         else:
-            raise LdapConnectionError(f"Error deleting user {dn}: {self.get_ldap_result_description()}")
+            raise LdapConnectionError(f"Error deleting user {user.dn}: {self.get_ldap_result_description()}")
 
     def enable_user(self, dn: str) -> None:
         self.modify_user_uac(dn, UserAccountControl.NORMAL_ACCOUNT)
@@ -81,13 +96,13 @@ class Ldap:
         else:
             raise LdapConnectionError(f"Error creating group {group.dn}: {self.get_ldap_result_description()}")
 
-    def delete_group(self, dn: str) -> None:
-        self.get_ldap_connection().delete(dn)
+    def delete_group(self, group: Group) -> None:
+        self.get_ldap_connection().delete(group.dn)
 
         if self.is_ldap_successful():
-            print(f"Deleted group {dn}")
+            print(f"Deleted group {group.dn}")
         else:
-            raise LdapConnectionError(f"Error deleting group {dn}: {self.get_ldap_result_description()}")
+            raise LdapConnectionError(f"Error deleting group {group.dn}: {self.get_ldap_result_description()}")
 
     def add_to_group(self, group_member_dn: str, group_dn: str) -> None:
         self.get_ldap_connection().modify(group_dn, {"member": [(MODIFY_ADD, [group_member_dn])]})
