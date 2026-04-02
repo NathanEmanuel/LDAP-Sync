@@ -1,11 +1,26 @@
 from dataclasses import dataclass
+from enum import IntFlag
 
-from models.group_type import GroupType
-from models.ldap_entry import LdapEntry
+from ldap.models.entry import Entry
+
+
+class GroupType(IntFlag):
+    GLOBAL = 0x00000002
+    DOMAIN_LOCAL = 0x00000004
+    UNIVERSAL = 0x00000008
+    SECURITY = 0x80000000
+
+    # Common combinations
+    GLOBAL_SECURITY = GLOBAL | SECURITY
+    DOMAIN_LOCAL_SECURITY = DOMAIN_LOCAL | SECURITY
+    UNIVERSAL_SECURITY = UNIVERSAL | SECURITY
+    GLOBAL_DISTRIBUTION = GLOBAL
+    DOMAIN_LOCAL_DISTRIBUTION = DOMAIN_LOCAL
+    UNIVERSAL_DISTRIBUTION = UNIVERSAL
 
 
 @dataclass
-class Group(LdapEntry):
+class Group(Entry):
     congressus_id: int
     description: str
 

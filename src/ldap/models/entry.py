@@ -3,13 +3,13 @@ from dataclasses import dataclass
 
 
 @dataclass
-class LdapEntry(ABC):
+class Entry(ABC):
     cn: str
     ou: str
-    
+
     @property
     def dn(self) -> str:
-        return f'CN={self.cn},{self.ou}'
-    
+        return f"CN={self.cn},{self.ou}"
+
     @abstractmethod
     def serialize(self) -> dict: ...

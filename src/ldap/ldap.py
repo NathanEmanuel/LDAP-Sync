@@ -1,18 +1,16 @@
-import os
-
-from dotenv import load_dotenv
-import ldap3.core.exceptions
-from ldap3 import Server, ALL, MODIFY_ADD, MODIFY_REPLACE
-from ldap3 import Connection as LdapConnection
-from ldap3.core.tls import Tls
 import ssl
 
-from models.group import Group
-from models.user import User
-from models.user_account_control import UserAccountControl
+import ldap3.core.exceptions
+from ldap3 import ALL, MODIFY_ADD, MODIFY_REPLACE
+from ldap3 import Connection as LdapConnection
+from ldap3 import Server
+from ldap3.core.tls import Tls
+
+from ldap.models.group import Group
+from ldap.models.user import User, UserAccountControl
 
 
-class Sync:
+class Ldap:
 
     _ldap_connection = None
 
@@ -120,38 +118,3 @@ class Sync:
 
 class LdapConnectionError(Exception):
     pass
-
-
-def main():
-    load_dotenv()
-
-    member = User(
-        cn="s2191229",
-        first_name="Nathan",
-        last_name="Emanuel",
-        password="P@ssword2026!",
-        ou=os.environ["MEMBERS_OU"],
-    )
-
-    committee = Group(
-        cn="Test Committee",
-        ou=os.environ["COMMITTEES_OU"],
-        congressus_id=12345,
-        description="This is a test committee.",
-    )
-
-    try:
-        with Sync(os.environ["ADMIN_DN"], os.environ["ADMIN_PW"]) as sync:
-            sync.create_user(member)
-            sync.disable_user(member.dn)
-            sync.enable_user(member.dn)
-            sync.create_group(committee)
-            sync.add_to_group(member.dn, committee.dn)
-            sync.delete_group(committee.dn)
-            sync.delete_user(member.dn)
-    except LdapConnectionError as e:
-        print(e)
-
-
-if __name__ == "__main__":
-    main()

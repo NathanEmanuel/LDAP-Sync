@@ -17,6 +17,7 @@ dev = [
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
+markers = ["integration: tests that hit real external services"]
 
 [build-system]
 requires = ["setuptools"]
