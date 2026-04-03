@@ -1,4 +1,6 @@
-from datetime import date
+from datetime import date as Date
+from datetime import datetime as DateTime
+from typing import Literal
 
 from pydantic import BaseModel
 
@@ -83,7 +85,7 @@ class Group(BaseModel):
     description: str | None = None
     description_short: str | None = None
     email: str | None = None
-    end: date | None = None
+    end: Date | None = None
     folder: Folder
     folder_id: int
     id: int
@@ -96,15 +98,15 @@ class Group(BaseModel):
     postal_address: str | None = None
     published: bool
     slug: str
-    start: date | None = None
+    start: Date | None = None
     url: str | None = None
 
 
 class GroupMembership(BaseModel):
     id: int
     member_id: int
-    start: date | None = None
-    end: date | None = None
+    start: Date | None = None
+    end: Date | None = None
     function: str | None = None
     may_edit_profile: bool
     may_manage_memberships: bool
@@ -114,3 +116,75 @@ class GroupMembership(BaseModel):
     order: int
     group_id: int
     group: Group
+
+
+class MemberStatus(BaseModel):
+    id: int
+    name: str
+    status_id: int
+    member_from: Date
+    member_to: Date
+    archived: bool
+    deceased: bool
+
+
+class SddMandate(BaseModel):
+    entity_id: int
+    entity_name: str
+    reference: str | None = None
+    date: Date | None = None
+    date_cancelled: Date | None = None
+    is_valid: bool
+
+
+class BankAccount(BaseModel):
+    iban: str | None = None
+    bic: str | None = None
+    iban_formatted: str | None = None
+    iban_masked: str | None = None
+    sdd_mandates: list[SddMandate] | None = None
+
+
+class Member(BaseModel):
+    id: int
+    username: str
+    status: MemberStatus
+    statuses: list[MemberStatus]
+    gender: Literal["m", "f", "o", ""] | None = None
+    prefix: str | None = None
+    initials: str | None = None
+    nickname: str | None = None
+    given_name: str | None = None
+    first_name: str | None = None
+    primary_last_name_main: str | None = None
+    primary_last_name_prefix: str | None = None
+    primary_last_name: str
+    secondary_last_name_main: str | None = None
+    secondary_last_name_prefix: str | None = None
+    secondary_last_name: str | None = None
+    last_name_display: str | None = None
+    last_name: str
+    search_name: str | None = None
+    suffix: str | None = None
+    date_of_birth: Date | None = None
+    email: str | None = None
+    phone_mobile: Phone | None = None
+    phone_home: Phone | None = None
+    address: Address | None = None
+    profile_picture_id: int | None = None
+    profile_picture: Logo | None = None
+    formal_picture_id: int | None = None
+    formal_picture: Logo | None = None
+    deleted: bool | None = None
+    receive_sms: bool
+    receive_mailings: bool
+    locked: bool
+    show_almanac: bool
+    show_almanac_addresses: bool
+    show_almanac_phonenumbers: bool
+    show_almanac_email: bool
+    show_almanac_date_of_birth: bool
+    show_almanac_custom_fields: bool
+    modified: DateTime | None = None
+    bank_account: BankAccount | None = None
+    custom_field_data: dict
