@@ -6,31 +6,31 @@ from pydantic import BaseModel
 
 
 class Locale(BaseModel):
-    code: str
-    id: int
-    name: str
+    id: int | None = None
+    name: str | None = None
+    code: str | None = None
 
 
 class Country(BaseModel):
-    calling_code: str
-    country_code: str
-    default_locale: Locale
-    id: int
-    name: str
-    name_local: str
-    name_locale_en: str
-    name_locale_nl: str
+    id: int | None = None
+    name: str | None = None
+    name_local: str | None = None
+    name_locale_nl: str | None = None
+    name_locale_en: str | None = None
+    country_code: str | None = None
+    calling_code: str | None = None
+    default_locale: Locale | None = None
 
 
 class Address(BaseModel):
     address: str | None = None
+    zip: str | None = None
     city: str | None = None
-    country: Country
+    province: str | None = None
+    country: Country | None = None
     lat: float | None = None
     lng: float | None = None
     location: str | None = None
-    province: str | None = None
-    zip: str | None = None
 
 
 class StorageFolder(BaseModel):
@@ -44,17 +44,17 @@ class StorageFolder(BaseModel):
 
 
 class Folder(BaseModel):
-    breadcrumbs: str
     id: int
+    parent_id: int | None = None
     name: str
-    order_type: str
-    parent_id: int
-    path: str
-    published: bool
     slug: str
+    path: str
+    breadcrumbs: str
+    published: bool
+    order_type: Literal["lastname", "date", "sorted", "function"]
 
 
-class Phone(BaseModel):
+class PhoneNumber(BaseModel):
     number: str
     number_full: str
     number_full_MSISDN: str
@@ -83,39 +83,39 @@ class StorageObject(BaseModel):
 class GroupMembership(BaseModel):
     id: int
     member_id: int
-    start: Date | None = None
+    start: Date
     end: Date | None = None
     function: str | None = None
-    may_edit_profile: bool
-    may_manage_memberships: bool
-    may_manage_storage_objects: bool
-    is_self_enroll: bool
-    order_type: str
-    order: int
+    may_edit_profile: bool | None = None
+    may_manage_memberships: bool | None = None
+    may_manage_storage_objects: bool | None = None
+    is_self_enroll: bool | None = None
+    order_type: Literal["lastname", "date", "sorted", "function"] | None = None
+    order: int | None = None
     group_id: int
     group: "Group"
 
 
 class Group(BaseModel):
-    address: Address
+    id: int
+    folder_id: int | None = None
+    folder: Folder | None = None
+    name: str
+    address: Address | None = None
+    postal_address: Address | None = None
+    phone: PhoneNumber | None = None
     description: str | None = None
     description_short: str | None = None
     email: str | None = None
-    end: Date | None = None
-    folder: Folder
-    folder_id: int
-    id: int
-    logo: StorageObject | None = None
-    memberships: list[GroupMembership]
-    memo: str
-    name: str
-    path: str
-    phone: str | None = None
-    postal_address: str | None = None
-    published: bool
-    slug: str
-    start: Date | None = None
     url: str | None = None
+    logo: StorageObject | None = None
+    slug: str
+    path: str
+    published: bool
+    start: Date
+    end: Date | None = None
+    memo: str | None = None
+    memberships: list[GroupMembership]
 
 
 GroupMembership.model_rebuild()
@@ -134,8 +134,8 @@ class MemberStatus(BaseModel):
 class SddMandate(BaseModel):
     entity_id: int
     entity_name: str
-    reference: str | None = None
-    date: Date | None = None
+    reference: str
+    date: Date
     date_cancelled: Date | None = None
     is_valid: bool
 
@@ -170,24 +170,24 @@ class Member(BaseModel):
     search_name: str | None = None
     suffix: str | None = None
     date_of_birth: Date | None = None
-    email: str | None = None
-    phone_mobile: Phone | None = None
-    phone_home: Phone | None = None
+    email: str
+    phone_mobile: PhoneNumber | None = None
+    phone_home: PhoneNumber | None = None
     address: Address | None = None
     profile_picture_id: int | None = None
     profile_picture: StorageObject | None = None
     formal_picture_id: int | None = None
     formal_picture: StorageObject | None = None
     deleted: bool | None = None
-    receive_sms: bool
-    receive_mailings: bool
-    locked: bool
-    show_almanac: bool
-    show_almanac_addresses: bool
-    show_almanac_phonenumbers: bool
-    show_almanac_email: bool
-    show_almanac_date_of_birth: bool
-    show_almanac_custom_fields: bool
+    receive_sms: bool | None = None
+    receive_mailings: bool | None = None
+    locked: bool | None = None
+    show_almanac: bool | None = None
+    show_almanac_addresses: bool | None = None
+    show_almanac_phonenumbers: bool | None = None
+    show_almanac_email: bool | None = None
+    show_almanac_date_of_birth: bool | None = None
+    show_almanac_custom_fields: bool | None = None
     modified: DateTime | None = None
     bank_account: BankAccount | None = None
     custom_field_data: dict

@@ -26,8 +26,8 @@ async def test_retrieve_group(client: Client, sample_group_data: dict) -> None:
     assert isinstance(result, Group)
     assert result.id == 90364
     assert result.name == "AXI 2024-2025"
-    assert result.folder.name == "AXI"
-    assert result.address.country.country_code == "NL"
+    assert result.folder.name == "AXI" # type: ignore
+    assert result.address.country.country_code == "NL" # type: ignore
     
 
 @respx.mock
