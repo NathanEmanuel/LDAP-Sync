@@ -1,6 +1,6 @@
 import httpx
 
-from congressus.models import Group, GroupMembership
+from congressus.models import Group, GroupMembership, Member
 
 
 class Client:
@@ -22,6 +22,10 @@ class Client:
     async def retrieve_group_membership(self, group_membership_id: int) -> GroupMembership:
         data = await self._get(f"/groups/memberships/{group_membership_id}")
         return GroupMembership.model_validate(data)
+    
+    async def retrieve_member(self, member_id: int) -> Member:
+        data = await self._get(f"/members/{member_id}")
+        return Member.model_validate(data)
 
     async def __aenter__(self):
         return self

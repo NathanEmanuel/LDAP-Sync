@@ -58,3 +58,15 @@ async def test_retrieve_group_membership_not_found(client: Client) -> None:
     respx.get(f"{BASE_URL}/groups/memberships/0").mock(return_value=httpx.Response(404))
     with pytest.raises(httpx.HTTPStatusError):
         await client.retrieve_group_membership(0)
+
+@respx.mock
+async def test_retrieve_member(client: Client, sample_member_data: dict) -> None:
+    respx.get(f"{BASE_URL}/members/1965").mock(return_value=httpx.Response(200, json=sample_member_data))
+
+    result = await client.retrieve_member(1965)
+
+    assert result.id == 1965
+    assert result.first_name == "John"
+    assert result.last_name == "Doe"
+    assert result.date_of_birth == date(1970, 1, 1)
+    assert result.email == "john.doe@example.com"

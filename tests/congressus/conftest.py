@@ -67,3 +67,281 @@ def sample_membership_data(sample_group_data: dict) -> dict:
 @pytest.fixture
 def sample_group_membership(sample_membership_data) -> GroupMembership:
     return GroupMembership.model_validate(sample_membership_data)
+
+@pytest.fixture
+def sample_member_data() -> dict:
+    return {
+        "address": {
+            "address": "Examplestraat 1",
+            "city": "Enschede",
+            "country": {
+                "calling_code": "31",
+                "country_code": "NL",
+                "default_locale": {
+                    "code": "nl",
+                    "id": 1,
+                    "name": "Nederlands"
+                },
+                "id": 125,
+                "name": "Netherlands",
+                "name_local": "Nederland",
+                "name_locale_en": "Netherlands",
+                "name_locale_nl": "Nederland"
+            },
+            "lat": 0.0,
+            "lng": 0.0,
+            "location": "(0.0,0.0)",
+            "province": "Overijssel",
+            "zip": "1234 AB"
+        },
+        "bank_account": {
+            "bic": "BIC",
+            "iban": "IBAN",
+            "iban_formatted": "IBAN_FORMATTED",
+            "iban_masked": "IBAN_MASKED",
+            "sdd_mandates": [
+                {
+                    "date": "1970-01-01",
+                    "date_cancelled": None,
+                    "entity_id": 1,
+                    "entity_name": "W.S.G. Isaac Newton",
+                    "is_valid": True,
+                    "reference": "123456789"
+                }
+            ]
+        },
+        "custom_field_data": {
+            "field_gender_optin": 3895,
+            "field_nationality": 2211,
+            "field_preference_birthday": True,
+            "field_roepnaam": "",
+            "field_student_mail": ""
+        },
+        "custom_fields": {
+            "field_gender_optin": {
+                "meta": {
+                    "choices": [
+                        {
+                            "option_id": 3896,
+                            "option_value": "Female"
+                        },
+                        {
+                            "option_id": 3895,
+                            "option_value": "Male"
+                        },
+                        {
+                            "option_id": 3897,
+                            "option_value": "Other"
+                        }
+                    ],
+                    "data_type": "option",
+                    "description": "",
+                    "id": 1672,
+                    "order": 4,
+                    "ref": "field_gender_optin",
+                    "set": "Additional information",
+                    "set_order": 1,
+                    "tab": "W.S.G. Isaac Newton",
+                    "tab_order": 1,
+                    "title": "Gender",
+                    "type": "option"
+                },
+                "value": {
+                    "option_id": 3895,
+                    "option_value": "Male"
+                }
+            },
+            "field_nationality": {
+                "meta": {
+                    "choices": [
+                        {
+                            "option_id": 2211,
+                            "option_value": "Dutch"
+                        },
+                        {
+                            "option_id": 2212,
+                            "option_value": "Non-dutch"
+                        }
+                    ],
+                    "data_type": "option",
+                    "description": "The board of W.S.G. Isaac Newton stores the nationality of members to keep track of the integration of international students within the study association.",
+                    "id": 1050,
+                    "order": 3,
+                    "ref": "field_nationality",
+                    "set": "Additional information",
+                    "set_order": 1,
+                    "tab": "W.S.G. Isaac Newton",
+                    "tab_order": 1,
+                    "title": "Nationality",
+                    "type": "option"
+                },
+                "value": {
+                    "option_id": 2211,
+                    "option_value": "Dutch"
+                }
+            },
+            "field_preference_birthday": {
+                "meta": {
+                    "choices": [],
+                    "data_type": "boolean",
+                    "description": "",
+                    "id": 1666,
+                    "order": 7,
+                    "ref": "field_preference_birthday",
+                    "set": "Preferences",
+                    "set_order": 4,
+                    "tab": "W.S.G. Isaac Newton",
+                    "tab_order": 1,
+                    "title": "Show my name in the Newton Room on my birthday",
+                    "type": "checkbox"
+                },
+                "value": True
+            },
+            "field_roepnaam": {
+                "meta": {
+                    "choices": [],
+                    "data_type": "char",
+                    "description": "",
+                    "id": 457,
+                    "order": 2,
+                    "ref": "field_roepnaam",
+                    "set": "Additional information",
+                    "set_order": 1,
+                    "tab": "W.S.G. Isaac Newton",
+                    "tab_order": 1,
+                    "title": "Nickname",
+                    "type": "text_long"
+                },
+                "value": ""
+            },
+            "field_student_mail": {
+                "meta": {
+                    "choices": [],
+                    "data_type": "char",
+                    "description": "",
+                    "id": 5642,
+                    "order": 1,
+                    "ref": "field_student_mail",
+                    "set": "Additional information",
+                    "set_order": 1,
+                    "tab": "W.S.G. Isaac Newton",
+                    "tab_order": 1,
+                    "title": "Student email",
+                    "type": "email"
+                },
+                "value": ""
+            }
+        },
+        "date_of_birth": "1970-01-01",
+        "deleted": False,
+        "email": "john.doe@example.com",
+        "first_name": "John",
+        "formal_picture": None,
+        "formal_picture_id": None,
+        "gender": "m",
+        "given_name": None,
+        "id": 1965,
+        "initials": "J.D.",
+        "last_name": "Doe",
+        "last_name_display": None,
+        "locked": False,
+        "memo": "",
+        "modified": "2024-10-17T13:04:32.369982",
+        "nickname": None,
+        "phone_home": {
+            "country": {
+                "calling_code": "31",
+                "country_code": "NL",
+                "default_locale": {
+                    "code": "nl",
+                    "id": 1,
+                    "name": "Nederlands"
+                },
+                "id": 125,
+                "name": "Netherlands",
+                "name_local": "Nederland",
+                "name_locale_en": "Netherlands",
+                "name_locale_nl": "Nederland"
+            },
+            "number": "",
+            "number_formatted": "-",
+            "number_full": "",
+            "number_full_MSISDN": ""
+        },
+        "phone_mobile": {
+            "country": {
+                "calling_code": "31",
+                "country_code": "NL",
+                "default_locale": {
+                    "code": "nl",
+                    "id": 1,
+                    "name": "Nederlands"
+                },
+                "id": 125,
+                "name": "Netherlands",
+                "name_local": "Nederland",
+                "name_locale_en": "Netherlands",
+                "name_locale_nl": "Nederland"
+            },
+            "number": "612345678",
+            "number_formatted": "+31 6 12 34 56 78",
+            "number_full": "+31612345678",
+            "number_full_MSISDN": "31612345678"
+        },
+        "prefix": None,
+        "primary_last_name": "Doe",
+        "primary_last_name_main": "Doe",
+        "primary_last_name_prefix": "",
+        "profile_picture": {
+            "content_type": "image/png",
+            "extension": "png",
+            "filename": "Screenshot_2024-03-18_180954.png",
+            "folder": None,
+            "id": 2698180,
+            "image_height": 445,
+            "image_width": 454,
+            "is_image": True,
+            "name": "Screenshot_2024-03-18_180954.png",
+            "size": 314364,
+            "type": "members",
+            "url": "https://example.com/ea3d3c657de84f1aa930853c49e3c6ed.png",
+            "url_lg": "https://example.com/isaacnewton/members/ea3d3c657de84f1aa930853c49e3c6ed.png",
+            "url_md": "https://example.com/isaacnewton/members/ea3d3c657de84f1aa930853c49e3c6ed.png",
+            "url_sm": "https://example.com/isaacnewton/members/ea3d3c657de84f1aa930853c49e3c6ed.png"
+        },
+        "profile_picture_id": 2698180,
+        "receive_mailings": True,
+        "receive_sms": True,
+        "search_name": "John Doe",
+        "secondary_last_name": "",
+        "secondary_last_name_main": None,
+        "secondary_last_name_prefix": None,
+        "show_almanac": True,
+        "show_almanac_addresses": True,
+        "show_almanac_custom_fields": True,
+        "show_almanac_date_of_birth": True,
+        "show_almanac_email": True,
+        "show_almanac_phonenumbers": True,
+        "status": {
+            "archived": False,
+            "deceased": False,
+            "id": 1070,
+            "member_from": "1970-01-01",
+            "member_to": None,
+            "name": "Primary member ",
+            "status_id": 1069
+        },
+        "statuses": [
+            {
+                "archived": False,
+                "deceased": False,
+                "id": 1070,
+                "member_from": "1970-01-01",
+                "member_to": None,
+                "name": "Primary member ",
+                "status_id": 1069
+            }
+        ],
+        "suffix": None,
+        "username": "s1234567"
+    }

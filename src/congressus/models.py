@@ -62,44 +62,22 @@ class Phone(BaseModel):
     country: Country
 
 
-class Logo(BaseModel):
+class StorageObject(BaseModel):
     id: int
     url: str | None = None
     url_sm: str | None = None
     url_md: str | None = None
     url_lg: str | None = None
     is_image: bool | None = None
-    type: str
-    filename: str
-    name: str
+    type: Literal["members", "files", "template", "groups", "user", "gallery", "contracts"] | None = None
+    filename: str | None = None
+    name: str | None = None
     size: int
     extension: str
     content_type: str
-    image_width: int
-    image_height: int
-    folder: StorageFolder
-
-
-class Group(BaseModel):
-    address: Address
-    description: str | None = None
-    description_short: str | None = None
-    email: str | None = None
-    end: Date | None = None
-    folder: Folder
-    folder_id: int
-    id: int
-    logo: str | None = None
-    memberships: list
-    memo: str
-    name: str
-    path: str
-    phone: str | None = None
-    postal_address: str | None = None
-    published: bool
-    slug: str
-    start: Date | None = None
-    url: str | None = None
+    image_width: int | None = None
+    image_height: int | None = None
+    folder: StorageFolder | None = None
 
 
 class GroupMembership(BaseModel):
@@ -115,7 +93,32 @@ class GroupMembership(BaseModel):
     order_type: str
     order: int
     group_id: int
-    group: Group
+    group: "Group"
+
+
+class Group(BaseModel):
+    address: Address
+    description: str | None = None
+    description_short: str | None = None
+    email: str | None = None
+    end: Date | None = None
+    folder: Folder
+    folder_id: int
+    id: int
+    logo: StorageObject | None = None
+    memberships: list[GroupMembership]
+    memo: str
+    name: str
+    path: str
+    phone: str | None = None
+    postal_address: str | None = None
+    published: bool
+    slug: str
+    start: Date | None = None
+    url: str | None = None
+
+
+GroupMembership.model_rebuild()
 
 
 class MemberStatus(BaseModel):
@@ -123,7 +126,7 @@ class MemberStatus(BaseModel):
     name: str
     status_id: int
     member_from: Date
-    member_to: Date
+    member_to: Date | None = None
     archived: bool
     deceased: bool
 
@@ -172,9 +175,9 @@ class Member(BaseModel):
     phone_home: Phone | None = None
     address: Address | None = None
     profile_picture_id: int | None = None
-    profile_picture: Logo | None = None
+    profile_picture: StorageObject | None = None
     formal_picture_id: int | None = None
-    formal_picture: Logo | None = None
+    formal_picture: StorageObject | None = None
     deleted: bool | None = None
     receive_sms: bool
     receive_mailings: bool
