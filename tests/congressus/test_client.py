@@ -26,15 +26,45 @@ async def test_retrieve_group(client: Client, sample_group_data: dict) -> None:
     assert isinstance(result, Group)
     assert result.id == 90364
     assert result.name == "AXI 2024-2025"
-    assert result.folder.name == "AXI" # type: ignore
-    assert result.address.country.country_code == "NL" # type: ignore
-    
+    assert result.folder.name == "AXI"  # type: ignore
+    assert result.address.country.country_code == "NL"  # type: ignore
+
 
 @respx.mock
 async def test_retrieve_group_not_found(client: Client) -> None:
     respx.get(f"{BASE_URL}/groups/0").mock(return_value=httpx.Response(404))
     with pytest.raises(httpx.HTTPStatusError):
         await client.retrieve_group(0)
+
+
+@respx.mock
+async def test_list_standing_committees(client: Client, sample_active_standing_committee_data: dict) -> None:
+
+    respx.get(f"{BASE_URL}/groups").mock(return_value=httpx.Response(200, json=sample_active_standing_committee_data))
+
+    result = await client.list_standing_committees()
+
+    assert isinstance(result, list)
+    assert all(isinstance(g, Group) for g in result)
+    assert len(result) == 2
+    assert result[0].name == "AcquisiCie"
+    assert result[1].name == "AlmanaCie"
+    assert result[0].id == 66187
+    assert result[1].id == 43387
+
+
+@respx.mock
+async def test_list_active_standing_committees(client: Client, sample_active_standing_committee_data: dict) -> None:
+
+    respx.get(f"{BASE_URL}/groups").mock(return_value=httpx.Response(200, json=sample_active_standing_committee_data))
+
+    result = await client.list_active_standing_committees()
+
+    assert isinstance(result, list)
+    assert all(isinstance(g, Group) for g in result)
+    assert len(result) == 1
+    assert result[0].name == "AcquisiCie"
+    assert result[0].id == 66187
 
 
 @respx.mock
@@ -58,6 +88,7 @@ async def test_retrieve_group_membership_not_found(client: Client) -> None:
     respx.get(f"{BASE_URL}/groups/memberships/0").mock(return_value=httpx.Response(404))
     with pytest.raises(httpx.HTTPStatusError):
         await client.retrieve_group_membership(0)
+
 
 @respx.mock
 async def test_retrieve_member(client: Client, sample_member_data: dict) -> None:

@@ -115,7 +115,7 @@ class Group(BaseModel):
     start: Date
     end: Date | None = None
     memo: str | None = None
-    memberships: list[GroupMembership]
+    memberships: list[GroupMembership] | None = None
 
 
 GroupMembership.model_rebuild()

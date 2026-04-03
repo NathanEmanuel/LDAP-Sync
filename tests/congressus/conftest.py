@@ -68,6 +68,7 @@ def sample_membership_data(sample_group_data: dict) -> dict:
 def sample_group_membership(sample_membership_data) -> GroupMembership:
     return GroupMembership.model_validate(sample_membership_data)
 
+
 @pytest.fixture
 def sample_member_data() -> dict:
     return {
@@ -77,22 +78,18 @@ def sample_member_data() -> dict:
             "country": {
                 "calling_code": "31",
                 "country_code": "NL",
-                "default_locale": {
-                    "code": "nl",
-                    "id": 1,
-                    "name": "Nederlands"
-                },
+                "default_locale": {"code": "nl", "id": 1, "name": "Nederlands"},
                 "id": 125,
                 "name": "Netherlands",
                 "name_local": "Nederland",
                 "name_locale_en": "Netherlands",
-                "name_locale_nl": "Nederland"
+                "name_locale_nl": "Nederland",
             },
             "lat": 0.0,
             "lng": 0.0,
             "location": "(0.0,0.0)",
             "province": "Overijssel",
-            "zip": "1234 AB"
+            "zip": "1234 AB",
         },
         "bank_account": {
             "bic": "BIC",
@@ -106,33 +103,24 @@ def sample_member_data() -> dict:
                     "entity_id": 1,
                     "entity_name": "W.S.G. Isaac Newton",
                     "is_valid": True,
-                    "reference": "123456789"
+                    "reference": "123456789",
                 }
-            ]
+            ],
         },
         "custom_field_data": {
             "field_gender_optin": 3895,
             "field_nationality": 2211,
             "field_preference_birthday": True,
             "field_roepnaam": "",
-            "field_student_mail": ""
+            "field_student_mail": "",
         },
         "custom_fields": {
             "field_gender_optin": {
                 "meta": {
                     "choices": [
-                        {
-                            "option_id": 3896,
-                            "option_value": "Female"
-                        },
-                        {
-                            "option_id": 3895,
-                            "option_value": "Male"
-                        },
-                        {
-                            "option_id": 3897,
-                            "option_value": "Other"
-                        }
+                        {"option_id": 3896, "option_value": "Female"},
+                        {"option_id": 3895, "option_value": "Male"},
+                        {"option_id": 3897, "option_value": "Other"},
                     ],
                     "data_type": "option",
                     "description": "",
@@ -144,25 +132,13 @@ def sample_member_data() -> dict:
                     "tab": "W.S.G. Isaac Newton",
                     "tab_order": 1,
                     "title": "Gender",
-                    "type": "option"
+                    "type": "option",
                 },
-                "value": {
-                    "option_id": 3895,
-                    "option_value": "Male"
-                }
+                "value": {"option_id": 3895, "option_value": "Male"},
             },
             "field_nationality": {
                 "meta": {
-                    "choices": [
-                        {
-                            "option_id": 2211,
-                            "option_value": "Dutch"
-                        },
-                        {
-                            "option_id": 2212,
-                            "option_value": "Non-dutch"
-                        }
-                    ],
+                    "choices": [{"option_id": 2211, "option_value": "Dutch"}, {"option_id": 2212, "option_value": "Non-dutch"}],
                     "data_type": "option",
                     "description": "The board of W.S.G. Isaac Newton stores the nationality of members to keep track of the integration of international students within the study association.",
                     "id": 1050,
@@ -173,12 +149,9 @@ def sample_member_data() -> dict:
                     "tab": "W.S.G. Isaac Newton",
                     "tab_order": 1,
                     "title": "Nationality",
-                    "type": "option"
+                    "type": "option",
                 },
-                "value": {
-                    "option_id": 2211,
-                    "option_value": "Dutch"
-                }
+                "value": {"option_id": 2211, "option_value": "Dutch"},
             },
             "field_preference_birthday": {
                 "meta": {
@@ -193,9 +166,9 @@ def sample_member_data() -> dict:
                     "tab": "W.S.G. Isaac Newton",
                     "tab_order": 1,
                     "title": "Show my name in the Newton Room on my birthday",
-                    "type": "checkbox"
+                    "type": "checkbox",
                 },
-                "value": True
+                "value": True,
             },
             "field_roepnaam": {
                 "meta": {
@@ -210,9 +183,9 @@ def sample_member_data() -> dict:
                     "tab": "W.S.G. Isaac Newton",
                     "tab_order": 1,
                     "title": "Nickname",
-                    "type": "text_long"
+                    "type": "text_long",
                 },
-                "value": ""
+                "value": "",
             },
             "field_student_mail": {
                 "meta": {
@@ -227,10 +200,10 @@ def sample_member_data() -> dict:
                     "tab": "W.S.G. Isaac Newton",
                     "tab_order": 1,
                     "title": "Student email",
-                    "type": "email"
+                    "type": "email",
                 },
-                "value": ""
-            }
+                "value": "",
+            },
         },
         "date_of_birth": "1970-01-01",
         "deleted": False,
@@ -252,41 +225,33 @@ def sample_member_data() -> dict:
             "country": {
                 "calling_code": "31",
                 "country_code": "NL",
-                "default_locale": {
-                    "code": "nl",
-                    "id": 1,
-                    "name": "Nederlands"
-                },
+                "default_locale": {"code": "nl", "id": 1, "name": "Nederlands"},
                 "id": 125,
                 "name": "Netherlands",
                 "name_local": "Nederland",
                 "name_locale_en": "Netherlands",
-                "name_locale_nl": "Nederland"
+                "name_locale_nl": "Nederland",
             },
             "number": "",
             "number_formatted": "-",
             "number_full": "",
-            "number_full_MSISDN": ""
+            "number_full_MSISDN": "",
         },
         "phone_mobile": {
             "country": {
                 "calling_code": "31",
                 "country_code": "NL",
-                "default_locale": {
-                    "code": "nl",
-                    "id": 1,
-                    "name": "Nederlands"
-                },
+                "default_locale": {"code": "nl", "id": 1, "name": "Nederlands"},
                 "id": 125,
                 "name": "Netherlands",
                 "name_local": "Nederland",
                 "name_locale_en": "Netherlands",
-                "name_locale_nl": "Nederland"
+                "name_locale_nl": "Nederland",
             },
             "number": "612345678",
             "number_formatted": "+31 6 12 34 56 78",
             "number_full": "+31612345678",
-            "number_full_MSISDN": "31612345678"
+            "number_full_MSISDN": "31612345678",
         },
         "prefix": None,
         "primary_last_name": "Doe",
@@ -307,7 +272,7 @@ def sample_member_data() -> dict:
             "url": "https://example.com/ea3d3c657de84f1aa930853c49e3c6ed.png",
             "url_lg": "https://example.com/isaacnewton/members/ea3d3c657de84f1aa930853c49e3c6ed.png",
             "url_md": "https://example.com/isaacnewton/members/ea3d3c657de84f1aa930853c49e3c6ed.png",
-            "url_sm": "https://example.com/isaacnewton/members/ea3d3c657de84f1aa930853c49e3c6ed.png"
+            "url_sm": "https://example.com/isaacnewton/members/ea3d3c657de84f1aa930853c49e3c6ed.png",
         },
         "profile_picture_id": 2698180,
         "receive_mailings": True,
@@ -329,7 +294,7 @@ def sample_member_data() -> dict:
             "member_from": "1970-01-01",
             "member_to": None,
             "name": "Primary member ",
-            "status_id": 1069
+            "status_id": 1069,
         },
         "statuses": [
             {
@@ -339,9 +304,116 @@ def sample_member_data() -> dict:
                 "member_from": "1970-01-01",
                 "member_to": None,
                 "name": "Primary member ",
-                "status_id": 1069
+                "status_id": 1069,
             }
         ],
         "suffix": None,
-        "username": "s1234567"
+        "username": "s1234567",
+    }
+
+
+@pytest.fixture
+def sample_active_standing_committee_data() -> dict:
+    return {
+        "data": [
+            {
+                "address": {
+                    "address": None,
+                    "city": None,
+                    "country": {
+                        "calling_code": "31",
+                        "country_code": "NL",
+                        "default_locale": {"code": "nl", "id": 1, "name": "Nederlands"},
+                        "id": 125,
+                        "name": "Netherlands",
+                        "name_local": "Nederland",
+                        "name_locale_en": "Netherlands",
+                        "name_locale_nl": "Nederland",
+                    },
+                    "lat": None,
+                    "lng": None,
+                    "location": None,
+                    "province": None,
+                    "zip": None,
+                },
+                "description": None,
+                "description_short": None,
+                "email": "",
+                "end": None,
+                "folder": {
+                    "breadcrumbs": "Commitees",
+                    "id": 1160,
+                    "name": "Commitees",
+                    "order_type": "sorted",
+                    "parent_id": None,
+                    "path": "commitees",
+                    "published": True,
+                    "slug": "commitees",
+                },
+                "folder_id": 1160,
+                "id": 66187,
+                "logo": None,
+                "memo": "",
+                "name": "AcquisiCie",
+                "path": "commitees/acquisicie",
+                "phone": None,
+                "postal_address": None,
+                "published": True,
+                "slug": "acquisicie",
+                "start": "2022-06-24",
+                "url": None,
+            },
+            {
+                "address": {
+                    "address": "",
+                    "city": "",
+                    "country": {
+                        "calling_code": "31",
+                        "country_code": "NL",
+                        "default_locale": {"code": "nl", "id": 1, "name": "Nederlands"},
+                        "id": 125,
+                        "name": "Netherlands",
+                        "name_local": "Nederland",
+                        "name_locale_en": "Netherlands",
+                        "name_locale_nl": "Nederland",
+                    },
+                    "lat": None,
+                    "lng": None,
+                    "location": None,
+                    "province": None,
+                    "zip": "",
+                },
+                "description": None,
+                "description_short": None,
+                "email": "",
+                "end": "2020-03-23",
+                "folder": {
+                    "breadcrumbs": "Commitees",
+                    "id": 1160,
+                    "name": "Commitees",
+                    "order_type": "sorted",
+                    "parent_id": None,
+                    "path": "commitees",
+                    "published": True,
+                    "slug": "commitees",
+                },
+                "folder_id": 1160,
+                "id": 43387,
+                "logo": None,
+                "memo": "",
+                "name": "AlmanaCie",
+                "path": "commitees/almanacie",
+                "phone": None,
+                "postal_address": None,
+                "published": True,
+                "slug": "almanacie",
+                "start": "2020-03-23",
+                "url": None,
+            },
+        ],
+        "has_next": True,
+        "has_prev": False,
+        "next_num": 2,
+        "prev_num": None,
+        "total": 28,
     }

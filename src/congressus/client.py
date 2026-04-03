@@ -1,10 +1,15 @@
+import os
+from datetime import date
+
 import httpx
+from dotenv import load_dotenv
 
 from congressus.models import Group, GroupMembership, Member
 
 
 class Client:
     def __init__(self, base_url: str, api_key: str):
+        load_dotenv()
         self._client = httpx.AsyncClient(
             base_url=base_url,
             headers={"Authorization": f"Bearer {api_key}"},
@@ -15,6 +20,18 @@ class Client:
         resp.raise_for_status()
         return resp.json()
 
+    async def list_groups(self) -> list[Group]:
+        data = await self._get("/groups")
+        return [Group.model_validate(item) for item in data]
+
+    async def list_standing_committees(self) -> list[Group]:
+        data = await self._get("/groups", folder_id=os.environ["CONGRESSUS_API_COMMITTEE_FOLDER_ID"])
+        return [Group.model_validate(item) for item in data["data"]]
+
+    async def list_active_standing_committees(self) -> list[Group]:
+        groups = await self.list_standing_committees()
+        return [group for group in groups if group.end is None or group.end > date.today()]
+
     async def retrieve_group(self, group_id: int) -> Group:
         data = await self._get(f"/groups/{group_id}")
         return Group.model_validate(data)
@@ -22,7 +39,7 @@ class Client:
     async def retrieve_group_membership(self, group_membership_id: int) -> GroupMembership:
         data = await self._get(f"/groups/memberships/{group_membership_id}")
         return GroupMembership.model_validate(data)
-    
+
     async def retrieve_member(self, member_id: int) -> Member:
         data = await self._get(f"/members/{member_id}")
         return Member.model_validate(data)
