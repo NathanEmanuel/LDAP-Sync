@@ -54,6 +54,13 @@ class Folder(BaseModel):
     order_type: Literal["lastname", "date", "sorted", "function"]
 
 
+class FolderWithChildren(Folder):
+    children: list["FolderWithChildren"]
+
+
+FolderWithChildren.model_rebuild()
+
+
 class PhoneNumber(BaseModel):
     number: str
     number_full: str

@@ -4,7 +4,7 @@ from datetime import date
 import httpx
 from dotenv import load_dotenv
 
-from congressus.models import Group, GroupMembership, Member
+from congressus.models import FolderWithChildren, Group, GroupMembership, Member
 
 
 class Client:
@@ -20,9 +20,9 @@ class Client:
         resp.raise_for_status()
         return resp.json()
 
-    async def list_groups(self) -> list[Group]:
-        data = await self._get("/groups")
-        return [Group.model_validate(item) for item in data]
+    async def list_groups(self, folder_ids: list[int] = []) -> list[Group]:
+        data = await self._get("/groups", folder_id=folder_ids)
+        return [Group.model_validate(item) for item in data["data"]]
 
     async def list_standing_committees(self) -> list[Group]:
         data = await self._get("/groups", folder_id=os.environ["CONGRESSUS_API_COMMITTEE_FOLDER_ID"])
@@ -31,6 +31,23 @@ class Client:
     async def list_active_standing_committees(self) -> list[Group]:
         groups = await self.list_standing_committees()
         return [group for group in groups if group.end is None or group.end > date.today()]
+
+    async def list_annual_committees(self) -> list[Group]:
+        response = await self._get("/group-folders/recursive")
+        group_folders = [FolderWithChildren.model_validate(item) for item in response["data"]]
+        committee_folder = next(
+            (folder for folder in group_folders if folder.id == int(os.environ["CONGRESSUS_API_COMMITTEE_FOLDER_ID"])), None
+        )
+        if committee_folder is None:
+            return []
+
+        annual_committee_folders = [FolderWithChildren.model_validate(item) for item in committee_folder.children]
+        annual_committee_folders_ids = [folder.id for folder in annual_committee_folders]
+        return await self.list_groups(annual_committee_folders_ids)
+
+    async def list_active_annual_committees(self) -> list[Group]:
+        annual_committees = await self.list_annual_committees()
+        return [committee for committee in annual_committees if committee.end is None or committee.end > date.today()]
 
     async def retrieve_group(self, group_id: int) -> Group:
         data = await self._get(f"/groups/{group_id}")
