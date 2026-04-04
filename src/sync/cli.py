@@ -125,7 +125,7 @@ async def _congressus_get_member(args: argparse.Namespace) -> int:
 
 async def _congressus_list_memberships(args: argparse.Namespace) -> int:
     memberships = await _with_congressus_client(
-        lambda client: client.list_group_memberships(group_id=args.group_id, member_id=args.member_id)
+        lambda client: client.list_group_memberships(group_ids=args.group_id, member_ids=args.member_id)
     )
 
     _print_json([membership.model_dump(mode="json") for membership in memberships])

@@ -24,6 +24,19 @@ class Client:
         resp.raise_for_status()
         return resp.json()
 
+    async def _depaginate(self, method: Callable[..., Awaitable[list[T]]], *args, **kwargs) -> list[T]:
+        items: list[T] = list()
+
+        for page in range(1, 100):
+            new = await method(*args, page=page, **kwargs)
+            if not new:
+                break
+            items.extend(new)
+        else:
+            raise RuntimeError("Too many pages requested. Stopping to avoid infinite loop.")
+
+        return items
+
     async def list_groups(self, folder_ids: list[int] = [], page: int = 1, page_size: int = 25) -> list[Group]:
         data = await self._get("/groups", folder_id=folder_ids, page=page, page_size=page_size)
         return [Group.model_validate(item) for item in data["data"]]
@@ -60,25 +73,12 @@ class Client:
         committees = await self._depaginate(self.list_annual_committees)
         return [c for c in committees if c.end is None or c.end > date.today()]
 
-    async def _depaginate(self, method: Callable[..., Awaitable[list[T]]], *args, **kwargs) -> list[T]:
-        items: list[T] = list()
-
-        for page in range(1, 100):
-            new = await method(*args, page=page, **kwargs)
-            if not new:
-                break
-            items.extend(new)
-        else:
-            raise RuntimeError("Too many pages requested. Stopping to avoid infinite loop.")
-
-        return items
-
     async def retrieve_group(self, group_id: int) -> Group:
         data = await self._get(f"/groups/{group_id}")
         return Group.model_validate(data)
 
-    async def list_group_memberships(self, group_id: list[int] = [], member_id: list[int] = []) -> list[GroupMembership]:
-        data = await self._get("/groups/memberships", group_id=group_id, member_id=member_id)
+    async def list_group_memberships(self, group_ids: list[int] = [], member_ids: list[int] = []) -> list[GroupMembership]:
+        data = await self._get("/groups/memberships", group_id=group_ids, member_id=member_ids)
         return [GroupMembership.model_validate(item) for item in data["data"]]
 
     async def retrieve_group_membership(self, group_membership_id: int) -> GroupMembership:
