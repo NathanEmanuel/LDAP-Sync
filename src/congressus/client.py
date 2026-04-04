@@ -78,9 +78,20 @@ class Client:
     
     # region Group Memberships
 
-    async def list_group_memberships(self, group_ids: list[int] = [], member_ids: list[int] = []) -> list[GroupMembership]:
-        data = await self._get("/groups/memberships", group_id=group_ids, member_id=member_ids)
+    async def list_group_memberships(self, group_ids: list[int] = [], member_ids: list[int] = [], page: int = 1, page_size: int = 25) -> list[GroupMembership]:
+        data = await self._get("/groups/memberships", group_id=group_ids, member_id=member_ids, page=page, page_size=page_size)
         return [GroupMembership.model_validate(item) for item in data["data"]]
+
+    async def list_active_committee_memberships(self) -> list[GroupMembership]:
+        committees = await self.list_active_committees()
+        committee_ids = [c.id for c in committees]
+        memberships = await self._depaginate(self.list_group_memberships, group_ids=committee_ids)
+        return [m for m in memberships if m.end is None or m.end > date.today()]
+    
+    async def list_active_member_ids(self) -> list[int]:
+        memberships = await self.list_active_committee_memberships()
+        member_ids = set(m.member_id for m in memberships)
+        return list(member_ids)
 
     async def retrieve_group_membership(self, group_membership_id: int) -> GroupMembership:
         data = await self._get(f"/groups/memberships/{group_membership_id}")
