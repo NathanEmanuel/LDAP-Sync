@@ -5,6 +5,7 @@ import asyncio
 import inspect
 import json
 import os
+import sys
 from collections.abc import Awaitable, Callable
 from typing import Any, TypeVar
 
@@ -38,6 +39,33 @@ def _print_json(data: Any) -> None:
     print(json.dumps(data, indent=2))
 
 
+async def _run_with_spinner(message: str, operation: Callable[[], Awaitable[T]]) -> T:
+    stop = asyncio.Event()
+
+    async def spin() -> None:
+        frames = "|/-\\"
+        index = 0
+        while not stop.is_set():
+            frame = frames[index % len(frames)]
+            sys.stderr.write(f"\r{message} {frame}")
+            sys.stderr.flush()
+            index += 1
+            try:
+                await asyncio.wait_for(stop.wait(), timeout=0.1)
+            except TimeoutError:
+                continue
+
+        sys.stderr.write("\r" + (" " * (len(message) + 2)) + "\r")
+        sys.stderr.flush()
+
+    spinner_task = asyncio.create_task(spin())
+    try:
+        return await operation()
+    finally:
+        stop.set()
+        await spinner_task
+
+
 async def _with_congressus_client(operation: Callable[[Client], Awaitable[T]]) -> T:
     env = _require_env("CONGRESSUS_API_KEY")
     base_url = os.getenv("CONGRESSUS_API_BASE_URL", "https://api.congressus.nl/v30")
@@ -63,7 +91,7 @@ async def _congressus_list_committees(args: argparse.Namespace) -> int:
                     else await client.list_active_standing_committees()
                 )
 
-    groups = await _with_congressus_client(operation)
+    groups = await _run_with_spinner("Fetching...", lambda: _with_congressus_client(operation))
     if groups is None:
         print("No committees found.")
         return 0
