@@ -134,15 +134,17 @@ async def _congressus_list_memberships(args: argparse.Namespace) -> int:
     return 0
 
 
-async def _congressus_list_active_member_ids(args: argparse.Namespace) -> int:
-    member_ids = await _run_with_spinner("Fetching...", lambda: _with_congressus_client(lambda client: client.list_active_member_ids()))
+async def _congressus_list_active_members(args: argparse.Namespace) -> int:
+    members = await _run_with_spinner(
+        "Fetching...", lambda: _with_congressus_client(lambda client: client.list_active_members(page=args.page))
+    )
 
     if args.json:
-        _print_json(member_ids)
+        _print_json([member.model_dump(mode="json") for member in members])
         return 0
 
-    for member_id in member_ids:
-        print(member_id)
+    for member in members:
+        print(f"{member.id}\t{member.first_name} {member.last_name}")
     return 0
 
 
@@ -189,9 +191,10 @@ def build_parser() -> argparse.ArgumentParser:
     memberships.add_argument("--member-id", action="append", type=int, default=[], help="Filter by member ID")
     memberships.set_defaults(handler=_congressus_list_memberships)
 
-    active_member_ids = congressus_sub.add_parser("active-member-ids", help="List active member IDs")
-    active_member_ids.add_argument("--json", action="store_true", help="Output JSON")
-    active_member_ids.set_defaults(handler=_congressus_list_active_member_ids)
+    active_members = congressus_sub.add_parser("active-members", help="List active members")
+    active_members.add_argument("--json", action="store_true", help="Output JSON")
+    active_members.add_argument("-p", "--page", type=int, default=1, help="Page number for pagination")
+    active_members.set_defaults(handler=_congressus_list_active_members)
 
     ldap = subparsers.add_parser("ldap", help="LDAP operations")
     ldap_sub = ldap.add_subparsers(dest="command", required=True)

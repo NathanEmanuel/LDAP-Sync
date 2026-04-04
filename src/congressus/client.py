@@ -93,10 +93,19 @@ class Client:
         memberships = await self._depaginate(self.list_group_memberships, group_ids=committee_ids)
         return [m for m in memberships if m.end is None or m.end > date.today()]
 
-    async def list_active_member_ids(self) -> list[int]:
+    async def list_active_members(self, *, page: int = 1, page_size: int = 50) -> list[Member]:
         memberships = await self.list_active_committee_memberships()
-        member_ids = set(m.member_id for m in memberships)
-        return list(member_ids)
+        member_ids = list(set(m.member_id for m in memberships))
+        start = (page - 1) * page_size
+        end = start + page_size
+        member_ids = member_ids[start:end]
+
+        members = []
+        for id in member_ids:
+            member = await self.retrieve_member(id)
+            if not (member.deleted or member.status.archived):
+                members.append(member)
+        return members
 
     async def retrieve_group_membership(self, group_membership_id: int) -> GroupMembership:
         data = await self._get(f"/groups/memberships/{group_membership_id}")
