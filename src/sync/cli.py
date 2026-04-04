@@ -1,0 +1,132 @@
+from __future__ import annotations
+
+import argparse
+import asyncio
+import inspect
+import json
+import os
+from typing import Any, Awaitable, Callable, TypeVar
+
+from dotenv import load_dotenv
+
+from congressus.client import Client
+from ldap.ldap import Ldap, LdapConnectionError
+
+T = TypeVar("T")
+
+
+def _require_env(*keys: str) -> dict[str, str]:
+    values: dict[str, str] = {}
+    missing: list[str] = []
+
+    for key in keys:
+        value = os.getenv(key)
+        if value is None or value == "":
+            missing.append(key)
+        else:
+            values[key] = value
+
+    if missing:
+        joined = ", ".join(missing)
+        raise SystemExit(f"Missing required environment variable(s): {joined}")
+
+    return values
+
+
+def _print_json(data: Any) -> None:
+    print(json.dumps(data, indent=2))
+
+
+async def _with_congressus_client(operation: Callable[[Client], Awaitable[T]]) -> T:
+    env = _require_env("CONGRESSUS_API_KEY")
+    base_url = os.getenv("CONGRESSUS_API_BASE_URL", "https://api.congressus.nl/v30")
+
+    async with Client(base_url=base_url, api_key=env["CONGRESSUS_API_KEY"]) as client:
+        return await operation(client)
+
+
+async def _congressus_list_standing_committees(args: argparse.Namespace) -> int:
+    async def operation(client: Client):
+        return await client.list_active_standing_committees() if args.active_only else await client.list_standing_committees()
+
+    groups = await _with_congressus_client(operation)
+
+    if args.json:
+        _print_json([group.model_dump(mode="json") for group in groups])
+        return 0
+
+    if not groups:
+        print("No committees found.")
+        return 0
+
+    for group in groups:
+        print(f"{group.id}\t{group.name}")
+    return 0
+
+
+async def _congressus_get_group(args: argparse.Namespace) -> int:
+    group = await _with_congressus_client(lambda client: client.retrieve_group(args.group_id))
+
+    _print_json(group.model_dump(mode="json"))
+    return 0
+
+
+async def _congressus_get_member(args: argparse.Namespace) -> int:
+    member = await _with_congressus_client(lambda client: client.retrieve_member(args.member_id))
+
+    _print_json(member.model_dump(mode="json"))
+    return 0
+
+
+def _ldap_check_bind(_: argparse.Namespace) -> int:
+    env = _require_env("ADMIN_DN", "ADMIN_PW")
+    try:
+        with Ldap(env["ADMIN_DN"], env["ADMIN_PW"]):
+            print("LDAP bind succeeded.")
+    except LdapConnectionError as exc:
+        print(f"LDAP bind failed: {exc}")
+        return 1
+    return 0
+
+
+def build_parser() -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser(
+        prog="ldap-sync",
+        description="Command-line utilities for Congressus and LDAP sync operations.",
+    )
+    subparsers = parser.add_subparsers(dest="service", required=True)
+
+    congressus = subparsers.add_parser("congressus", help="Query Congressus API")
+    congressus_sub = congressus.add_subparsers(dest="command", required=True)
+
+    committees = congressus_sub.add_parser("committees", help="List committees")
+    committees.add_argument("--active-only", action="store_true", help="Show only active committees")
+    committees.add_argument("--json", action="store_true", help="Output JSON")
+    committees.set_defaults(handler=_congressus_list_standing_committees)
+
+    group = congressus_sub.add_parser("group", help="Retrieve one group by ID")
+    group.add_argument("group_id", type=int)
+    group.set_defaults(handler=_congressus_get_group)
+
+    member = congressus_sub.add_parser("member", help="Retrieve one member by ID")
+    member.add_argument("member_id", type=int)
+    member.set_defaults(handler=_congressus_get_member)
+
+    ldap = subparsers.add_parser("ldap", help="LDAP operations")
+    ldap_sub = ldap.add_subparsers(dest="command", required=True)
+
+    check_bind = ldap_sub.add_parser("check-bind", help="Test LDAP bind using ADMIN_DN and ADMIN_PW")
+    check_bind.set_defaults(handler=_ldap_check_bind)
+
+    return parser
+
+
+def main() -> int:
+    load_dotenv()
+    parser = build_parser()
+    args = parser.parse_args()
+
+    handler = args.handler
+    if inspect.iscoroutinefunction(handler):
+        return asyncio.run(handler(args))
+    return handler(args)
