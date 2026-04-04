@@ -5,7 +5,8 @@ import asyncio
 import inspect
 import json
 import os
-from typing import Any, Awaitable, Callable, TypeVar
+from collections.abc import Awaitable, Callable
+from typing import Any, TypeVar
 
 from dotenv import load_dotenv
 
@@ -50,9 +51,17 @@ async def _congressus_list_committees(args: argparse.Namespace) -> int:
     async def operation(client: Client):
         match args.committee_kind:
             case "annual":
-                return await client.list_active_annual_committees(page=args.page) if args.active else await client.list_annual_committees(page=args.page)
-            case "standing":        
-                return await client.list_active_standing_committees(page=args.page) if args.active else await client.list_standing_committees(page=args.page)
+                return (
+                    await client.list_annual_committees(page=args.page)
+                    if args.all
+                    else await client.list_active_annual_committees()
+                )
+            case "standing":
+                return (
+                    await client.list_standing_committees(page=args.page)
+                    if args.all
+                    else await client.list_active_standing_committees()
+                )
 
     groups = await _with_congressus_client(operation)
     if groups is None:
@@ -117,7 +126,7 @@ def build_parser() -> argparse.ArgumentParser:
     committee_kind.add_argument("--standing", dest="committee_kind", action="store_const", const="standing")
     committee_kind.add_argument("--annual", dest="committee_kind", action="store_const", const="annual")
     committees.set_defaults(committee_kind="standing")
-    committees.add_argument("--active", action="store_true", help="Show only active committees")
+    committees.add_argument("--all", action="store_true", help="Show all committees. Also shows ended committees.")
     committees.add_argument("--json", action="store_true", help="Output JSON")
     committees.add_argument("-p", "--page", type=int, default=1, help="Page number for pagination")
     committees.set_defaults(handler=_congressus_list_committees)
