@@ -75,21 +75,25 @@ async def _with_congressus_client(operation: Callable[[Client], Awaitable[T]]) -
 
 
 async def _congressus_list_committees(args: argparse.Namespace) -> int:
+    if args.ended and args.committee_kind is None:
+        raise SystemExit("--ended requires either --standing/-s or --annual/-a")
 
     async def operation(client: Client):
         match args.committee_kind:
             case "annual":
                 return (
                     await client.list_annual_committees(page=args.page)
-                    if args.all
+                    if args.ended
                     else await client.list_active_annual_committees()
                 )
             case "standing":
                 return (
                     await client.list_standing_committees(page=args.page)
-                    if args.all
+                    if args.ended
                     else await client.list_active_standing_committees()
                 )
+            case _:
+                return (await client.list_active_committees())
 
     groups = await _run_with_spinner("Fetching...", lambda: _with_congressus_client(operation))
     if groups is None:
@@ -151,10 +155,9 @@ def build_parser() -> argparse.ArgumentParser:
 
     committees = congressus_sub.add_parser("committees", help="List committees")
     committee_kind = committees.add_mutually_exclusive_group()
-    committee_kind.add_argument("--standing", dest="committee_kind", action="store_const", const="standing")
-    committee_kind.add_argument("--annual", dest="committee_kind", action="store_const", const="annual")
-    committees.set_defaults(committee_kind="standing")
-    committees.add_argument("--all", action="store_true", help="Show all committees. Also shows ended committees.")
+    committee_kind.add_argument("--standing", "-s", dest="committee_kind", action="store_const", const="standing")
+    committee_kind.add_argument("--annual", "-a", dest="committee_kind", action="store_const", const="annual")
+    committees.add_argument("--ended", action="store_true", help="Also show ended committees (requires -s or -a)")
     committees.add_argument("--json", action="store_true", help="Output JSON")
     committees.add_argument("-p", "--page", type=int, default=1, help="Page number for pagination")
     committees.set_defaults(handler=_congressus_list_committees)

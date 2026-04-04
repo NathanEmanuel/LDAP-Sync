@@ -47,6 +47,11 @@ class Client:
         annual_committee_folders_ids = [folder.id for folder in annual_committee_folders]
         return await self.list_groups(annual_committee_folders_ids, page=page, page_size=page_size)
 
+    async def list_active_committees(self) -> list[Group]:
+        committees = await self.list_active_standing_committees()
+        committees.extend(await self.list_active_annual_committees())
+        return committees
+
     async def list_active_standing_committees(self) -> list[Group]:
         committees = await self._depaginate(self.list_standing_committees)
         return [c for c in committees if c.end is None or c.end > date.today()]
