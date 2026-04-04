@@ -36,6 +36,10 @@ class Client:
         data = await self._get(f"/groups/{group_id}")
         return Group.model_validate(data)
 
+    async def list_group_memberships(self, group_id: list[int] = [], member_id: list[int] = []) -> list[GroupMembership]:
+        data = await self._get("/groups/memberships", group_id=group_id, member_id=member_id)
+        return [GroupMembership.model_validate(item) for item in data["data"]]
+
     async def retrieve_group_membership(self, group_membership_id: int) -> GroupMembership:
         data = await self._get(f"/groups/memberships/{group_membership_id}")
         return GroupMembership.model_validate(data)

@@ -78,6 +78,15 @@ async def _congressus_get_member(args: argparse.Namespace) -> int:
     return 0
 
 
+async def _congressus_list_memberships(args: argparse.Namespace) -> int:
+    memberships = await _with_congressus_client(
+        lambda client: client.list_group_memberships(group_id=args.group_id, member_id=args.member_id)
+    )
+
+    _print_json([membership.model_dump(mode="json") for membership in memberships])
+    return 0
+
+
 def _ldap_check_bind(_: argparse.Namespace) -> int:
     env = _require_env("ADMIN_DN", "ADMIN_PW")
     try:
@@ -111,6 +120,11 @@ def build_parser() -> argparse.ArgumentParser:
     member = congressus_sub.add_parser("member", help="Retrieve one member by ID")
     member.add_argument("member_id", type=int)
     member.set_defaults(handler=_congressus_get_member)
+
+    memberships = congressus_sub.add_parser("memberships", help="List memberships")
+    memberships.add_argument("--group-id", action="append", type=int, default=[], help="Filter by group ID")
+    memberships.add_argument("--member-id", action="append", type=int, default=[], help="Filter by member ID")
+    memberships.set_defaults(handler=_congressus_list_memberships)
 
     ldap = subparsers.add_parser("ldap", help="LDAP operations")
     ldap_sub = ldap.add_subparsers(dest="command", required=True)
