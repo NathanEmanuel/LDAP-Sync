@@ -50,9 +50,9 @@ async def _congressus_list_committees(args: argparse.Namespace) -> int:
     async def operation(client: Client):
         match args.committee_kind:
             case "annual":
-                return await client.list_active_annual_committees() if args.active else await client.list_annual_committees()
+                return await client.list_active_annual_committees(page=args.page) if args.active else await client.list_annual_committees(page=args.page)
             case "standing":        
-                return await client.list_active_standing_committees() if args.active else await client.list_standing_committees()
+                return await client.list_active_standing_committees(page=args.page) if args.active else await client.list_standing_committees(page=args.page)
 
     groups = await _with_congressus_client(operation)
     if groups is None:
@@ -119,6 +119,7 @@ def build_parser() -> argparse.ArgumentParser:
     committees.set_defaults(committee_kind="standing")
     committees.add_argument("--active", action="store_true", help="Show only active committees")
     committees.add_argument("--json", action="store_true", help="Output JSON")
+    committees.add_argument("-p", "--page", type=int, default=1, help="Page number for pagination")
     committees.set_defaults(handler=_congressus_list_committees)
 
     group = congressus_sub.add_parser("group", help="Retrieve one group by ID")
