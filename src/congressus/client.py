@@ -53,8 +53,7 @@ class Client:
         if committee_folder is None:
             return []
 
-        annual_committee_folders = [FolderWithChildren.model_validate(item) for item in committee_folder.children]
-        annual_committee_folders_ids = [folder.id for folder in annual_committee_folders]
+        annual_committee_folders_ids = [folder.id for folder in committee_folder.children]
         return await self.list_groups(annual_committee_folders_ids, page=page, page_size=page_size)
 
     async def list_active_committees(self) -> list[Group]:
