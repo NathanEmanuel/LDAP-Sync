@@ -1,6 +1,6 @@
-from collections.abc import Awaitable, Callable
+from collections.abc import Awaitable
 from datetime import date
-from typing import TypeVar
+from typing import Protocol, TypeVar
 
 import httpx
 
@@ -8,6 +8,10 @@ from congressus.models import *
 
 T = TypeVar("T")
 PAGE_REQUEST_LIMIT = 100
+
+
+class PaginatedCallable(Protocol[T]):
+    def __call__(self, *args, page: int = 1, page_size: int = 25, **kwargs) -> Awaitable[list[T]]: ...
 
 
 class Client:
@@ -24,7 +28,7 @@ class Client:
         resp.raise_for_status()
         return resp.json()
 
-    async def _depaginate(self, method: Callable[..., Awaitable[list[T]]], *args, **kwargs) -> list[T]:
+    async def _depaginate(self, method: PaginatedCallable[T], *args, **kwargs) -> list[T]:
         items: list[T] = list()
 
         for page in range(1, PAGE_REQUEST_LIMIT):
@@ -39,14 +43,14 @@ class Client:
 
     # region Groups and Committees
 
-    async def list_groups(self, folder_ids: list[int] = [], page: int = 1, page_size: int = 25) -> list[Group]:
+    async def list_groups(self, *, folder_ids: list[int] = [], page: int = 1, page_size: int = 25) -> list[Group]:
         data = await self._get("/groups", folder_id=folder_ids, page=page, page_size=page_size)
         return [Group.model_validate(item) for item in data["data"]]
 
-    async def list_standing_committees(self, page: int = 1, page_size: int = 25) -> list[Group]:
+    async def list_standing_committees(self, *, page: int = 1, page_size: int = 25) -> list[Group]:
         return await self.list_groups(folder_ids=[self._committee_folder_id], page=page, page_size=page_size)
 
-    async def list_annual_committees(self, page: int = 1, page_size: int = 25) -> list[Group]:
+    async def list_annual_committees(self, *, page: int = 1, page_size: int = 25) -> list[Group]:
         response = await self._get("/group-folders/recursive")
         group_folders = [FolderWithChildren.model_validate(item) for item in response["data"]]
         committee_folder = next((folder for folder in group_folders if folder.id == self._committee_folder_id), None)
@@ -54,7 +58,7 @@ class Client:
             return []
 
         annual_committee_folders_ids = [folder.id for folder in committee_folder.children]
-        return await self.list_groups(annual_committee_folders_ids, page=page, page_size=page_size)
+        return await self.list_groups(folder_ids=annual_committee_folders_ids, page=page, page_size=page_size)
 
     async def list_active_committees(self) -> list[Group]:
         committees = await self.list_active_standing_committees()
@@ -72,12 +76,14 @@ class Client:
     async def retrieve_group(self, group_id: int) -> Group:
         data = await self._get(f"/groups/{group_id}")
         return Group.model_validate(data)
-    
+
     # endregion
-    
+
     # region Group Memberships
 
-    async def list_group_memberships(self, group_ids: list[int] = [], member_ids: list[int] = [], page: int = 1, page_size: int = 25) -> list[GroupMembership]:
+    async def list_group_memberships(
+        self, *, group_ids: list[int] = [], member_ids: list[int] = [], page: int = 1, page_size: int = 25
+    ) -> list[GroupMembership]:
         data = await self._get("/groups/memberships", group_id=group_ids, member_id=member_ids, page=page, page_size=page_size)
         return [GroupMembership.model_validate(item) for item in data["data"]]
 
@@ -86,7 +92,7 @@ class Client:
         committee_ids = [c.id for c in committees]
         memberships = await self._depaginate(self.list_group_memberships, group_ids=committee_ids)
         return [m for m in memberships if m.end is None or m.end > date.today()]
-    
+
     async def list_active_member_ids(self) -> list[int]:
         memberships = await self.list_active_committee_memberships()
         member_ids = set(m.member_id for m in memberships)
