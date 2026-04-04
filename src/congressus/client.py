@@ -1,23 +1,23 @@
-import os
 from collections.abc import Awaitable, Callable
 from datetime import date
 from typing import TypeVar
 
 import httpx
-from dotenv import load_dotenv
 
 from congressus.models import *
 
 T = TypeVar("T")
+PAGE_REQUEST_LIMIT = 100
 
 
 class Client:
-    def __init__(self, base_url: str, api_key: str):
-        load_dotenv()
+
+    def __init__(self, base_url: str, api_key: str, committee_folder_id: int):
         self._client = httpx.AsyncClient(
             base_url=base_url,
             headers={"Authorization": f"Bearer {api_key}"},
         )
+        self._committee_folder_id = committee_folder_id
 
     async def _get(self, path: str, **params) -> dict:
         resp = await self._client.get(path, params=params)
@@ -27,7 +27,7 @@ class Client:
     async def _depaginate(self, method: Callable[..., Awaitable[list[T]]], *args, **kwargs) -> list[T]:
         items: list[T] = list()
 
-        for page in range(1, 100):
+        for page in range(1, PAGE_REQUEST_LIMIT):
             new = await method(*args, page=page, **kwargs)
             if not new:
                 break
@@ -37,22 +37,19 @@ class Client:
 
         return items
 
+    # region Groups and Committees
+
     async def list_groups(self, folder_ids: list[int] = [], page: int = 1, page_size: int = 25) -> list[Group]:
         data = await self._get("/groups", folder_id=folder_ids, page=page, page_size=page_size)
         return [Group.model_validate(item) for item in data["data"]]
 
     async def list_standing_committees(self, page: int = 1, page_size: int = 25) -> list[Group]:
-        data = await self._get(
-            "/groups", folder_id=os.environ["CONGRESSUS_API_COMMITTEE_FOLDER_ID"], page=page, page_size=page_size
-        )
-        return [Group.model_validate(item) for item in data["data"]]
+        return await self.list_groups(folder_ids=[self._committee_folder_id], page=page, page_size=page_size)
 
     async def list_annual_committees(self, page: int = 1, page_size: int = 25) -> list[Group]:
         response = await self._get("/group-folders/recursive")
         group_folders = [FolderWithChildren.model_validate(item) for item in response["data"]]
-        committee_folder = next(
-            (folder for folder in group_folders if folder.id == int(os.environ["CONGRESSUS_API_COMMITTEE_FOLDER_ID"])), None
-        )
+        committee_folder = next((folder for folder in group_folders if folder.id == self._committee_folder_id), None)
         if committee_folder is None:
             return []
 
@@ -76,6 +73,10 @@ class Client:
     async def retrieve_group(self, group_id: int) -> Group:
         data = await self._get(f"/groups/{group_id}")
         return Group.model_validate(data)
+    
+    # endregion
+    
+    # region Group Memberships
 
     async def list_group_memberships(self, group_ids: list[int] = [], member_ids: list[int] = []) -> list[GroupMembership]:
         data = await self._get("/groups/memberships", group_id=group_ids, member_id=member_ids)
@@ -85,12 +86,22 @@ class Client:
         data = await self._get(f"/groups/memberships/{group_membership_id}")
         return GroupMembership.model_validate(data)
 
+    # endregion
+
+    # region Members
+
     async def retrieve_member(self, member_id: int) -> Member:
         data = await self._get(f"/members/{member_id}")
         return Member.model_validate(data)
+
+    # endregion
+
+    # region Context manager
 
     async def __aenter__(self):
         return self
 
     async def __aexit__(self, *args):
         await self._client.aclose()
+
+    # endregion

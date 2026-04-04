@@ -67,10 +67,12 @@ async def _run_with_spinner(message: str, operation: Callable[[], Awaitable[T]])
 
 
 async def _with_congressus_client(operation: Callable[[Client], Awaitable[T]]) -> T:
-    env = _require_env("CONGRESSUS_API_KEY")
+    env = _require_env("CONGRESSUS_API_KEY", "CONGRESSUS_API_COMMITTEE_FOLDER_ID")
     base_url = os.getenv("CONGRESSUS_API_BASE_URL", "https://api.congressus.nl/v30")
 
-    async with Client(base_url=base_url, api_key=env["CONGRESSUS_API_KEY"]) as client:
+    async with Client(
+        base_url=base_url, api_key=env["CONGRESSUS_API_KEY"], committee_folder_id=int(env["CONGRESSUS_API_COMMITTEE_FOLDER_ID"])
+    ) as client:
         return await operation(client)
 
 
@@ -93,7 +95,7 @@ async def _congressus_list_committees(args: argparse.Namespace) -> int:
                     else await client.list_active_standing_committees()
                 )
             case _:
-                return (await client.list_active_committees())
+                return await client.list_active_committees()
 
     groups = await _run_with_spinner("Fetching...", lambda: _with_congressus_client(operation))
     if groups is None:
