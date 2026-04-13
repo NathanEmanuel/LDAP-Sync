@@ -8,6 +8,7 @@ class OrganizationalUnit(Entry):
 
     @property
     def dn(self) -> str:
+        # NOTE: OUs use "OU=" instead of "CN=" in their DN
         return f"OU={self.cn},{self.ou}"
     
     @property

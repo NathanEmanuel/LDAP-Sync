@@ -35,10 +35,6 @@ class User(Entry):
     first_name: str
     last_name: str
     password: str
-
-    @property
-    def dn(self) -> str:
-        return f"CN={self.cn},{self.ou}"
     
     @property
     def name(self) -> str:

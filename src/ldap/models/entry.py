@@ -12,7 +12,9 @@ class Entry(ABC):
         return f"CN={self.cn},{self.ou}"
 
     @abstractmethod
-    def getName(self) -> str: ...
+    def getName(self) -> str:
+        """Not the same as 'name' in AD!"""
+        ...
 
     @abstractmethod
     def serialize(self) -> dict: ...
