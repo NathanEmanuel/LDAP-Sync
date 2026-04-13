@@ -99,8 +99,8 @@ class GroupMembership(BaseModel):
     is_self_enroll: bool | None = None
     order_type: Literal["lastname", "date", "sorted", "function"] | None = None
     order: int | None = None
-    group_id: int
-    group: "Group"
+    group_id: int | None = None
+    group: "Group | None" = None
 
 
 class Group(BaseModel):
