@@ -1,6 +1,7 @@
 from dataclasses import dataclass
 from enum import IntFlag
 
+from congressus.models import Group as CongressusGroup
 from ldap.models.entry import Entry
 
 
@@ -45,6 +46,16 @@ class Group(Entry):
             ou=ou,
             name=data["name"],
             description=data["description_short"],
+        )
+        
+    @staticmethod
+    def from_congressus_group(group: CongressusGroup, base_ou: str):
+        ou = Group.build_ou_from_congressus_data(group.model_dump(), base_ou)
+        return Group(
+            cn=str(group.id),
+            ou=ou,
+            name=group.name,
+            description=group.description_short or "No description.",
         )
 
     @staticmethod
