@@ -12,4 +12,7 @@ class Entry(ABC):
         return f"CN={self.cn},{self.ou}"
 
     @abstractmethod
+    def getName(self) -> str: ...
+
+    @abstractmethod
     def serialize(self) -> dict: ...

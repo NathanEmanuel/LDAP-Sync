@@ -21,26 +21,29 @@ class GroupType(IntFlag):
 
 @dataclass
 class Group(Entry):
-    congressus_id: int
+
+    name: str
     description: str
+
+    def getName(self) -> str:
+        return self.name
 
     def serialize(self) -> dict:
         return {
             "cn": self.cn,
             "objectClass": ["top", "group"],
-            "sAMAccountName": self.cn,
+            "sAMAccountName": self.name,
             "description": self.description,
             "groupType": int(GroupType.GLOBAL_SECURITY),
-            "info": self.congressus_id,
         }
 
     @staticmethod
     def from_congressus_data(data: dict, base_ou: str):
         ou = Group.build_ou_from_congressus_data(data, base_ou)
         return Group(
-            cn=data["name"],
+            cn=data["id"],
             ou=ou,
-            congressus_id=data["id"],
+            name=data["name"],
             description=data["description_short"],
         )
 

@@ -31,6 +31,7 @@ class UserAccountControl(IntFlag):
 
 @dataclass
 class User(Entry):
+    student_number: str
     first_name: str
     last_name: str
     password: str
@@ -38,6 +39,13 @@ class User(Entry):
     @property
     def dn(self) -> str:
         return f"CN={self.cn},{self.ou}"
+    
+    @property
+    def name(self) -> str:
+        return f"{self.first_name} {self.last_name}"
+    
+    def getName(self) -> str:
+        return self.name
 
     @property
     def encoded_password(self) -> bytes:
@@ -48,7 +56,7 @@ class User(Entry):
             "cn": self.cn,
             "sn": self.last_name,
             "givenName": self.first_name,
-            "sAMAccountName": self.cn,
+            "sAMAccountName": self.student_number,
             "objectClass": ["top", "person", "organizationalPerson", "user"],
             "unicodePwd": self.encoded_password,
             "userAccountControl": int(UserAccountControl.NORMAL_ACCOUNT),

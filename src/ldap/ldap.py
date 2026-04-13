@@ -1,13 +1,13 @@
 import ssl
 
 import ldap3.core.exceptions
-from ldap3 import ALL, MODIFY_ADD, MODIFY_REPLACE
+from ldap3 import ALL, MODIFY_ADD, MODIFY_DELETE, MODIFY_REPLACE
 from ldap3 import Connection as LdapConnection
 from ldap3 import Server
 from ldap3.core.tls import Tls
 
+from ldap.models.entry import Entry
 from ldap.models.group import Group
-from ldap.models.organizational_unit import OrganizationalUnit
 from ldap.models.user import User, UserAccountControl
 
 
@@ -47,88 +47,47 @@ class Ldap:
             raise LdapConnectionError("Not connected to Directory Server. Call ldap_bind() first.")
 
         return self._ldap_connection
-    
-    def create_ou(self, ou: OrganizationalUnit) -> None:
-        if self.get_ldap_connection().add(ou.dn, attributes=ou.serialize()):
-            print(f"Created OU {ou.dn}")
-        else:
-            raise LdapConnectionError(f"Error creating OU {ou.dn}: {self.get_ldap_result_description()}")
 
-    def delete_ou(self, ou: OrganizationalUnit) -> None:
-        self.get_ldap_connection().delete(ou.dn)
+    def create(self, entry: Entry) -> None:
+        self.get_ldap_connection().add(entry.dn, attributes=entry.serialize())
+        self._assert_ldap_successful()
+        print(f"Created {type(entry).__name__} {entry.getName()}")
 
-        if self.is_ldap_successful():
-            print(f"Deleted OU {ou.dn}")
-        else:
-            raise LdapConnectionError(f"Error deleting OU {ou.dn}: {self.get_ldap_result_description()}")
+    def delete(self, entry: Entry) -> None:
+        self.get_ldap_connection().delete(entry.dn)
+        self._assert_ldap_successful()
+        print(f"Deleted {type(entry).__name__} {entry.getName()}")
 
-    def create_user(self, user: User) -> None:
-        if self.get_ldap_connection().add(user.dn, attributes=user.serialize()):
-            print(f"Created user {user.dn}")
-        else:
-            raise LdapConnectionError(f"Error creating user {user.dn}: {self.get_ldap_result_description()}")
+    def enable_user(self, user: User) -> None:
+        self.modify_user_uac(user, UserAccountControl.NORMAL_ACCOUNT)
 
-    def delete_user(self, user: User) -> None:
-        self.get_ldap_connection().delete(user.dn)
+    def disable_user(self, user: User) -> None:
+        self.modify_user_uac(user, (UserAccountControl.NORMAL_ACCOUNT | UserAccountControl.ACCOUNTDISABLE))
 
-        if self.is_ldap_successful():
-            print(f"Deleted user {user.dn}")
-        else:
-            raise LdapConnectionError(f"Error deleting user {user.dn}: {self.get_ldap_result_description()}")
+    def modify_user_uac(self, user: User, uac: UserAccountControl):
+        self.get_ldap_connection().modify(user.dn, {"userAccountControl": [(MODIFY_REPLACE, [int(uac)])]})
+        self._assert_ldap_successful()
+        print(f"Modified user {user.dn} with UAC {uac}")
 
-    def enable_user(self, dn: str) -> None:
-        self.modify_user_uac(dn, UserAccountControl.NORMAL_ACCOUNT)
+    def add_to_group(self, member: User | Group, group: Group) -> None:
+        self.get_ldap_connection().modify(group.dn, {"member": [(MODIFY_ADD, [member.dn])]})
+        self._assert_ldap_successful()
+        print(f"Added {member.name} to {group.name}")
 
-    def disable_user(self, dn: str) -> None:
-        self.modify_user_uac(dn, (UserAccountControl.NORMAL_ACCOUNT | UserAccountControl.ACCOUNTDISABLE))
-
-    def modify_user_uac(self, dn: str, uac: UserAccountControl):
-        self.get_ldap_connection().modify(dn, {"userAccountControl": [(MODIFY_REPLACE, [int(uac)])]})
-
-        if self.is_ldap_successful():
-            print(f"Modified user {dn} with UAC {uac}")
-        else:
-            raise LdapConnectionError(f"Error modifying user {dn}: {self.get_ldap_result_description()}")
-
-    def create_group(self, group: Group) -> None:
-        if self.get_ldap_connection().add(group.dn, attributes=group.serialize()):
-            print(f"Created group {group.dn}")
-        else:
-            raise LdapConnectionError(f"Error creating group {group.dn}: {self.get_ldap_result_description()}")
-
-    def delete_group(self, group: Group) -> None:
-        self.get_ldap_connection().delete(group.dn)
-
-        if self.is_ldap_successful():
-            print(f"Deleted group {group.dn}")
-        else:
-            raise LdapConnectionError(f"Error deleting group {group.dn}: {self.get_ldap_result_description()}")
-
-    def add_to_group(self, group_member_dn: str, group_dn: str) -> None:
-        self.get_ldap_connection().modify(group_dn, {"member": [(MODIFY_ADD, [group_member_dn])]})
-
-        if self.is_ldap_successful():
-            print(f"Added {group_member_dn} to group {group_dn}")
-        else:
-            raise LdapConnectionError(
-                f"Error adding {group_member_dn} to group {group_dn}: {self.get_ldap_result_description()}"
-            )
-
-    def remove_from_group(self, group_member_dn: str, group_dn: str) -> None:
-        self.get_ldap_connection().modify(group_dn, {"member": [(MODIFY_REPLACE, [group_member_dn])]})
-
-        if self.is_ldap_successful():
-            print(f"Removed {group_member_dn} from group {group_dn}")
-        else:
-            raise LdapConnectionError(
-                f"Error removing {group_member_dn} from group {group_dn}: {self.get_ldap_result_description()}"
-            )
+    def remove_from_group(self, member: User | Group, group: Group) -> None:
+        self.get_ldap_connection().modify(group.dn, {"member": [(MODIFY_DELETE, [member.dn])]})
+        self._assert_ldap_successful()
+        print(f"Removed {member.name} from {group.name}")
 
     def get_ldap_result_description(self) -> str:
         return self.get_ldap_connection().result["description"]
 
-    def is_ldap_successful(self) -> bool:
+    def _is_ldap_successful(self) -> bool:
         return self.get_ldap_connection().result["result"] == 0
+
+    def _assert_ldap_successful(self) -> None:
+        if not self._is_ldap_successful():
+            raise LdapConnectionError(f"LDAP operation failed: {self.get_ldap_result_description()}")
 
 
 class LdapConnectionError(Exception):

@@ -5,9 +5,17 @@ from ldap.models.entry import Entry
 
 @dataclass
 class OrganizationalUnit(Entry):
+
     @property
     def dn(self) -> str:
         return f"OU={self.cn},{self.ou}"
+    
+    @property
+    def name(self) -> str:
+        return self.cn
+    
+    def getName(self) -> str:
+        return self.name
 
     def serialize(self) -> dict:
         return {
