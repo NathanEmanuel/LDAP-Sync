@@ -5,9 +5,9 @@ An active member is any Member that meets the following criteria:
 
 1. Is not archived (i.e. still a member)
 1. Has at least one Membership of a Group where:
-    1. The Group is in the *Commit(t)ees* folder
-    1. The Group has not ended yet (i.e. the committee still exists)
-    1. The Membership has not ended yet
+    1. The Group is in the *Commit(t)ees* folder (the group is committee)
+    1. The Group has not ended yet (the committee still exists)
+    1. The Group Membership has not ended yet (the member is still part of the committee)
 
 ## Access rights
 *Note: this does not apply to active members that are admins or KasCo.*
