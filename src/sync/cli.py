@@ -4,15 +4,18 @@ import argparse
 import asyncio
 import inspect
 import json
+import logging
 import os
 import sys
 from collections.abc import Awaitable, Callable
 from typing import Any, TypeVar
 
 from dotenv import load_dotenv
+from ldap3.core.exceptions import LDAPBindError
 
-from congressus.client import Client
-from ldap.ldap import Ldap, LdapConnectionError
+from congressus import Client as CongressusClient
+from ldap import Ldap
+from sync import LdapSync
 
 T = TypeVar("T")
 
@@ -66,11 +69,11 @@ async def _run_with_spinner(message: str, operation: Callable[[], Awaitable[T]])
         await spinner_task
 
 
-async def _with_congressus_client(operation: Callable[[Client], Awaitable[T]]) -> T:
+async def _with_congressus_client(operation: Callable[[CongressusClient], Awaitable[T]]) -> T:
     env = _require_env("CONGRESSUS_API_KEY", "CONGRESSUS_API_COMMITTEE_FOLDER_ID")
     base_url = os.getenv("CONGRESSUS_API_BASE_URL", "https://api.congressus.nl/v30")
 
-    async with Client(
+    async with CongressusClient(
         base_url=base_url, api_key=env["CONGRESSUS_API_KEY"], committee_folder_id=int(env["CONGRESSUS_API_COMMITTEE_FOLDER_ID"])
     ) as client:
         return await operation(client)
@@ -80,7 +83,7 @@ async def _congressus_list_committees(args: argparse.Namespace) -> int:
     if args.ended and args.committee_kind is None:
         raise SystemExit("--ended requires either --standing/-s or --annual/-a")
 
-    async def operation(client: Client):
+    async def operation(client: CongressusClient):
         match args.committee_kind:
             case "annual":
                 return (
@@ -153,9 +156,25 @@ def _ldap_check_bind(_: argparse.Namespace) -> int:
     try:
         with Ldap(env["ADMIN_DN"], env["ADMIN_PW"]):
             print("LDAP bind succeeded.")
-    except LdapConnectionError as exc:
-        print(f"LDAP bind failed: {exc}")
+    except LDAPBindError as e:
+        print(f"LDAP bind failed: {e}")
         return 1
+    return 0
+
+
+async def _sync_congressus_to_ldap(args: argparse.Namespace) -> int:
+    base_url = os.getenv("CONGRESSUS_API_BASE_URL", "https://api.congressus.nl/v30")
+    env = _require_env("CONGRESSUS_API_KEY", "CONGRESSUS_API_COMMITTEE_FOLDER_ID")
+    api_key = env["CONGRESSUS_API_KEY"]
+    committee_folder_id = int(env["CONGRESSUS_API_COMMITTEE_FOLDER_ID"])
+    congressus_client = CongressusClient(base_url, api_key, committee_folder_id)
+
+    env = _require_env("ADMIN_DN", "ADMIN_PW", "BASE_OU")
+    ldap_client = Ldap(env["ADMIN_DN"], env["ADMIN_PW"])
+
+    ldap_sync = LdapSync(congressus_client, ldap_client)
+    await ldap_sync.sync_groups(args.group_ids, ou=env["BASE_OU"])
+
     return 0
 
 
@@ -199,6 +218,11 @@ def build_parser() -> argparse.ArgumentParser:
     ldap = subparsers.add_parser("ldap", help="LDAP operations")
     ldap_sub = ldap.add_subparsers(dest="command", required=True)
 
+    sync = subparsers.add_parser("sync", help="Sync Congressus data to LDAP")
+    sync.add_argument("--group-ids", "-g", nargs="+", type=int, help="Sync given groups")
+    sync.add_argument("--member-ids", "-m", nargs="+", type=int, help="Sync given members")
+    sync.set_defaults(handler=_sync_congressus_to_ldap)
+
     check_bind = ldap_sub.add_parser("check-bind", help="Test LDAP bind using ADMIN_DN and ADMIN_PW")
     check_bind.set_defaults(handler=_ldap_check_bind)
 
@@ -206,6 +230,8 @@ def build_parser() -> argparse.ArgumentParser:
 
 
 def main() -> int:
+    logging.basicConfig(level=logging.DEBUG, format="[%(asctime)s] %(levelname)s: %(message)s")
+
     load_dotenv()
     parser = build_parser()
     args = parser.parse_args()

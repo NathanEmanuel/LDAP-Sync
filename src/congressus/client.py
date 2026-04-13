@@ -4,7 +4,7 @@ from typing import Protocol, TypeVar
 
 import httpx
 
-from congressus.models import *
+from .models import *
 
 T = TypeVar("T")
 PAGE_REQUEST_LIMIT = 100

@@ -21,7 +21,7 @@ def ldap() -> Generator[Ldap, None, None]:
 @pytest.fixture
 def members_ou(ldap: Ldap) -> Generator[OrganizationalUnit, None, None]:
     ou = OrganizationalUnit(cn="Members", ou=os.environ["BASE_OU"])
-    ldap.create(ou)
+    ldap.createIfNotExists(ou)
     yield ou
     ldap.delete(ou)
 
@@ -36,7 +36,7 @@ def member(ldap: Ldap, members_ou: OrganizationalUnit) -> Generator[User, None, 
         password="P@ssword2026!",
         ou=members_ou.dn,
     )
-    ldap.create(member)
+    ldap.createIfNotExists(member)
     yield member
     ldap.delete(member)
 
@@ -44,7 +44,7 @@ def member(ldap: Ldap, members_ou: OrganizationalUnit) -> Generator[User, None, 
 @pytest.fixture
 def committees_ou(ldap: Ldap) -> Generator[OrganizationalUnit, None, None]:
     ou = OrganizationalUnit(cn="Committees", ou=os.environ["BASE_OU"])
-    ldap.create(ou)
+    ldap.createIfNotExists(ou)
     yield ou
     ldap.delete(ou)
 
@@ -57,14 +57,14 @@ def committee(ldap: Ldap, committees_ou: OrganizationalUnit) -> Generator[Group,
         name="Test Committee",
         description="This is a test committee.",
     )
-    ldap.create(committee)
+    ldap.createIfNotExists(committee)
     yield committee
     ldap.delete(committee)
 
 
 @pytest.mark.integration
 def test_ldap_connection(ldap: Ldap) -> None:
-    assert ldap.get_ldap_connection().bound
+    assert ldap.get_connection().bound
 
 
 @pytest.mark.integration
@@ -77,14 +77,14 @@ def test_ldap_invalid_credentials() -> None:
 @pytest.mark.integration
 def test_create_members_ou(ldap: Ldap) -> None:
     ou = OrganizationalUnit(cn="Members", ou=os.environ["BASE_OU"])
-    ldap.create(ou)
+    ldap.createIfNotExists(ou)
     ldap.delete(ou)
 
 
 @pytest.mark.integration
 def test_create_committees_ou(ldap: Ldap) -> None:
     ou = OrganizationalUnit(cn="Committees", ou=os.environ["BASE_OU"])
-    ldap.create(ou)
+    ldap.createIfNotExists(ou)
     ldap.delete(ou)
 
 
@@ -98,7 +98,7 @@ def test_create_delete_user(ldap: Ldap, members_ou: OrganizationalUnit) -> None:
         password="P@ssword2026!",
         ou=members_ou.dn,
     )
-    ldap.create(member)
+    ldap.createIfNotExists(member)
     ldap.delete(member)
     with pytest.raises(LdapConnectionError):
         ldap.delete(member)
@@ -123,7 +123,7 @@ def test_create_delete_group(ldap: Ldap, committees_ou: OrganizationalUnit) -> N
         name="Test Committee",
         description="This is a test committee.",
     )
-    ldap.create(committee)
+    ldap.createIfNotExists(committee)
     ldap.delete(committee)
     with pytest.raises(LdapConnectionError):
         ldap.delete(committee)
