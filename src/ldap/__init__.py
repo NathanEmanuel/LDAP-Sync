@@ -1,1 +1,1 @@
-from .ldap import Ldap
+from .ldap_client import LdapClient

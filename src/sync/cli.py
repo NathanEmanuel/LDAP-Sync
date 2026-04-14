@@ -14,7 +14,7 @@ from dotenv import load_dotenv
 from ldap3.core.exceptions import LDAPBindError
 
 from congressus import Client as CongressusClient
-from ldap import Ldap
+from ldap import LdapClient
 from sync import LdapSync
 
 T = TypeVar("T")
@@ -154,7 +154,7 @@ async def _congressus_list_active_members(args: argparse.Namespace) -> int:
 def _ldap_check_bind(_: argparse.Namespace) -> int:
     env = _require_env("ADMIN_DN", "ADMIN_PW")
     try:
-        with Ldap(env["ADMIN_DN"], env["ADMIN_PW"]):
+        with LdapClient(env["ADMIN_DN"], env["ADMIN_PW"]):
             print("LDAP bind succeeded.")
     except LDAPBindError as e:
         print(f"LDAP bind failed: {e}")
@@ -170,7 +170,7 @@ async def _sync_congressus_to_ldap(args: argparse.Namespace) -> int:
     congressus_client = CongressusClient(base_url, api_key, committee_folder_id)
 
     env = _require_env("ADMIN_DN", "ADMIN_PW", "BASE_OU")
-    ldap_client = Ldap(env["ADMIN_DN"], env["ADMIN_PW"])
+    ldap_client = LdapClient(env["ADMIN_DN"], env["ADMIN_PW"])
 
     ldap_sync = LdapSync(congressus_client, ldap_client)
     await ldap_sync.sync_groups(args.group_ids, ou=env["BASE_OU"])

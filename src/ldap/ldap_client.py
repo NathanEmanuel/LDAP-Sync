@@ -8,7 +8,7 @@ from ldap3.core.tls import Tls
 from .models import Entry, Group, User, UserAccountControl
 
 
-class Ldap:
+class LdapClient:
 
     _connection = None
 
@@ -49,13 +49,14 @@ class Ldap:
 
         return self._connection
 
-    def createIfNotExists(self, entry: Entry, ignore_existing: bool = True) -> None:
+    def create_if_not_exists(self, entry: Entry, ignore_existing: bool = True) -> bool:
         try:
             self.get_connection().add(entry.dn, attributes=entry.serialize())
+            return True
         except ldap3_exceptions.LDAPEntryAlreadyExistsResult as e:
             if ignore_existing:
                 logging.debug(f"{type(entry).__name__} {entry.getName()} already exists. Skipping creation.")
-                return
+                return False
             raise e
 
     def delete(self, entry: Entry) -> None:
