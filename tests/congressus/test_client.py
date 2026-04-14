@@ -9,11 +9,12 @@ from congressus.client import Client
 from congressus.models import Group, GroupMembership
 
 BASE_URL = "https://api.congressus.nl/v30"
+FOLDER_ID = 123
 
 
 @pytest.fixture
 async def client() -> AsyncGenerator[Client, None]:
-    async with Client(BASE_URL, api_key="test-key") as c:
+    async with Client(BASE_URL, api_key="test-key", committee_folder_id=FOLDER_ID) as c:
         yield c
 
 
@@ -56,7 +57,10 @@ async def test_list_standing_committees(client: Client, sample_active_standing_c
 @respx.mock
 async def test_list_active_standing_committees(client: Client, sample_active_standing_committee_data: dict) -> None:
 
-    respx.get(f"{BASE_URL}/groups").mock(return_value=httpx.Response(200, json=sample_active_standing_committee_data))
+    respx.get(f"{BASE_URL}/groups", params={"folder_id": FOLDER_ID, "page": 1}).mock(
+        return_value=httpx.Response(200, json=sample_active_standing_committee_data)
+    )
+    respx.get(f"{BASE_URL}/groups", params={"folder_id": FOLDER_ID, "page": 2}).mock(return_value=httpx.Response(200, json={"data": [], "total": 0}))
 
     result = await client.list_active_standing_committees()
 
