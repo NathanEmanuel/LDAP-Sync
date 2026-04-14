@@ -1,8 +1,7 @@
 from dataclasses import dataclass
 from enum import IntFlag
 
-from congressus.models import Group as CongressusGroup
-from ldap.models.entry import Entry
+from ldap.models import Entry
 
 
 class GroupType(IntFlag):
@@ -37,32 +36,3 @@ class Group(Entry):
             "description": self.description or "No description.",  # LDAP doesn't allow empty strings, so we provide a default
             "groupType": int(GroupType.GLOBAL_SECURITY),
         }
-
-    @staticmethod
-    def from_congressus_data(data: dict, base_ou: str):
-        ou = Group.build_ou_from_congressus_data(data, base_ou)
-        return Group(
-            cn=data["id"],
-            ou=ou,
-            name=data["name"],
-            description=data["description_short"],
-        )
-        
-    @staticmethod
-    def from_congressus_group(group: CongressusGroup, base_ou: str):
-        ou = Group.build_ou_from_congressus_data(group.model_dump(), base_ou)
-        return Group(
-            cn=str(group.id),
-            ou=ou,
-            name=group.name,
-            description=group.description_short or "No description.",
-        )
-
-    @staticmethod
-    def build_ou_from_congressus_data(data: dict, base_ou: str) -> str:
-        breadcrumbs = str(data["folder"]["breadcrumbs"])
-        breadcrumbs = breadcrumbs.replace("Commitees", "Committees")
-        ou_list = breadcrumbs.split(" / ")
-        ou_list.reverse()
-        ou_string = ",".join(f"OU={ou}" for ou in ou_list)
-        return ou_string + f",{base_ou}"
