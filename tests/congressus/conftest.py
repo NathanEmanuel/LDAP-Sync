@@ -1,6 +1,6 @@
 import pytest
 
-from congressus.models import Group, GroupMembership
+from congressus.models import Group, GroupMembershipWithGroup
 
 
 @pytest.fixture
@@ -65,8 +65,8 @@ def sample_membership_data(sample_group_data: dict) -> dict:
 
 
 @pytest.fixture
-def sample_group_membership(sample_membership_data) -> GroupMembership:
-    return GroupMembership.model_validate(sample_membership_data)
+def sample_group_membership(sample_membership_data) -> GroupMembershipWithGroup:
+    return GroupMembershipWithGroup.model_validate(sample_membership_data)
 
 
 @pytest.fixture

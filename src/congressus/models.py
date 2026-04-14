@@ -99,8 +99,11 @@ class GroupMembership(BaseModel):
     is_self_enroll: bool | None = None
     order_type: Literal["lastname", "date", "sorted", "function"] | None = None
     order: int | None = None
-    group_id: int | None = None
-    group: "Group | None" = None
+    group_id: int
+
+
+class GroupMembershipWithGroup(GroupMembership):
+    group: "Group"
 
 
 class Group(BaseModel):
@@ -125,7 +128,7 @@ class Group(BaseModel):
     memberships: list[GroupMembership] | None = None
 
 
-GroupMembership.model_rebuild()
+GroupMembershipWithGroup.model_rebuild()
 
 
 class MemberStatus(BaseModel):

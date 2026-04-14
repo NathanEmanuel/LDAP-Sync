@@ -107,9 +107,9 @@ class Client:
                 members.append(member)
         return members
 
-    async def retrieve_group_membership(self, group_membership_id: int) -> GroupMembership:
+    async def retrieve_group_membership(self, group_membership_id: int) -> GroupMembershipWithGroup:
         data = await self._get(f"/groups/memberships/{group_membership_id}")
-        return GroupMembership.model_validate(data)
+        return GroupMembershipWithGroup.model_validate(data)
 
     # endregion
 
