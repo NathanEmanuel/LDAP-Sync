@@ -1,9 +1,11 @@
-from abc import ABC, abstractmethod
+from abc import abstractmethod
 from dataclasses import dataclass
+
+from common import SyncModel
 
 
 @dataclass
-class Entry(ABC):
+class Entry(SyncModel):
     cn: str
     ou: str
 
@@ -11,10 +13,13 @@ class Entry(ABC):
     def dn(self) -> str:
         return f"CN={self.cn},{self.ou}"
 
+    def get_id(self) -> str:
+        return self.cn
+
     @abstractmethod
-    def getName(self) -> str:
+    def get_name(self) -> str:
         """Not the same as 'name' in AD!"""
         ...
 
     @abstractmethod
-    def serialize(self) -> dict: ...
+    def serialize_for_creation(self) -> dict: ...

@@ -24,17 +24,17 @@ class GroupType(IntFlag):
 class Group(Entry):
 
     name: str
-    description: str
+    description: str | None
 
-    def getName(self) -> str:
+    def get_name(self) -> str:
         return self.name
 
-    def serialize(self) -> dict:
+    def serialize_for_creation(self) -> dict:
         return {
             "cn": self.cn,
             "objectClass": ["top", "group"],
             "sAMAccountName": self.name,
-            "description": self.description,
+            "description": self.description or "No description.",  # LDAP doesn't allow empty strings, so we provide a default
             "groupType": int(GroupType.GLOBAL_SECURITY),
         }
 

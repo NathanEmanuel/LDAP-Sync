@@ -4,6 +4,8 @@ from typing import Literal
 
 from pydantic import BaseModel
 
+from common import SyncModel
+
 
 class Locale(BaseModel):
     id: int | None = None
@@ -87,7 +89,7 @@ class StorageObject(BaseModel):
     folder: StorageFolder | None = None
 
 
-class GroupMembership(BaseModel):
+class GroupMembership(BaseModel, SyncModel):
     id: int
     member_id: int
     start: Date
@@ -99,14 +101,17 @@ class GroupMembership(BaseModel):
     is_self_enroll: bool | None = None
     order_type: Literal["lastname", "date", "sorted", "function"] | None = None
     order: int | None = None
-    group_id: int
+    group_id: int | None = None  # not provided if object is nested under Group
+
+    def get_id(self) -> str:
+        return str(self.id)
 
 
 class GroupMembershipWithGroup(GroupMembership):
     group: "Group"
 
 
-class Group(BaseModel):
+class Group(BaseModel, SyncModel):
     id: int
     folder_id: int | None = None
     folder: Folder | None = None
@@ -126,6 +131,9 @@ class Group(BaseModel):
     end: Date | None = None
     memo: str | None = None
     memberships: list[GroupMembership] | None = None
+
+    def get_id(self) -> str:
+        return str(self.id)
 
 
 GroupMembershipWithGroup.model_rebuild()
@@ -158,7 +166,7 @@ class BankAccount(BaseModel):
     sdd_mandates: list[SddMandate] | None = None
 
 
-class Member(BaseModel):
+class Member(BaseModel, SyncModel):
     id: int
     username: str
     status: MemberStatus
@@ -201,3 +209,6 @@ class Member(BaseModel):
     modified: DateTime | None = None
     bank_account: BankAccount | None = None
     custom_field_data: dict
+
+    def get_id(self) -> str:
+        return str(self.id)

@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 
-from ldap.models.entry import Entry
+from ldap.models import Entry
 
 
 @dataclass
@@ -10,15 +10,15 @@ class OrganizationalUnit(Entry):
     def dn(self) -> str:
         # NOTE: OUs use "OU=" instead of "CN=" in their DN
         return f"OU={self.cn},{self.ou}"
-    
+
     @property
     def name(self) -> str:
         return self.cn
-    
-    def getName(self) -> str:
+
+    def get_name(self) -> str:
         return self.name
 
-    def serialize(self) -> dict:
+    def serialize_for_creation(self) -> dict:
         return {
             "ou": self.cn,
             "objectClass": ["top", "organizationalUnit"],
