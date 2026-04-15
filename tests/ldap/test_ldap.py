@@ -31,7 +31,7 @@ def members_ou(ldap: LdapClient) -> Generator[OrganizationalUnit, None, None]:
 def member(ldap: LdapClient, members_ou: OrganizationalUnit) -> Generator[User, None, None]:
     member = User(
         cn="5678",
-        student_number="s1234567",
+        account_name="s1234567",
         first_name="Nathan",
         last_name="Emanuel",
         password="P@ssword2026!",
@@ -93,7 +93,7 @@ def test_create_committees_ou(ldap: LdapClient) -> None:
 def test_create_delete_user(ldap: LdapClient, members_ou: OrganizationalUnit) -> None:
     member = User(
         cn="5678",
-        student_number="s1234567",
+        account_name="s1234567",
         first_name="Nathan",
         last_name="Emanuel",
         password="P@ssword2026!",

@@ -1,7 +1,9 @@
+import secrets
 from dataclasses import dataclass
 from enum import IntFlag
+from typing import Optional
 
-from ldap.models.entry import Entry
+from ldap.models import Entry
 
 
 class UserAccountControl(IntFlag):
@@ -31,29 +33,46 @@ class UserAccountControl(IntFlag):
 
 @dataclass
 class User(Entry):
-    student_number: str
+    account_name: str
     first_name: str
     last_name: str
-    password: str
-    
+    password: str | None = None
+
     @property
     def name(self) -> str:
         return f"{self.first_name} {self.last_name}"
-    
-    def getName(self) -> str:
+
+    def get_name(self) -> str:
         return self.name
 
     @property
-    def encoded_password(self) -> bytes:
+    def _encoded_password(self) -> bytes:
+        if self.password is None:
+            raise ValueError("Password must be set to encode.")
+
         return (f'"{self.password}"').encode("utf-16-le")
 
-    def serialize(self) -> dict:
+    def set_password(self, password: Optional[str], length: int = 12) -> None:
+        self.password = password
+
+    def set_random_password(self, length: int = 12) -> None:
+        if length > 86:
+            raise ValueError("Password length cannot exceed 86 characters.")
+
+        self.set_password(secrets.token_urlsafe(64)[:length])
+
+    def set_random_password_if_unset(self, length: int = 12) -> None:
+        if not self.password:
+            self.set_random_password(length)
+
+    def serialize_for_creation(self) -> dict:
         return {
             "cn": self.cn,
+            "sAMAccountName": self.account_name,
             "sn": self.last_name,
             "givenName": self.first_name,
-            "sAMAccountName": self.student_number,
+            "displayName": f"{self.first_name} {self.last_name}",
             "objectClass": ["top", "person", "organizationalPerson", "user"],
-            "unicodePwd": self.encoded_password,
+            "unicodePwd": self._encoded_password,
             "userAccountControl": int(UserAccountControl.NORMAL_ACCOUNT),
         }
