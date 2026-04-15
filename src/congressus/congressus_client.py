@@ -28,6 +28,7 @@ class CongressusClient:
         self._client = httpx.AsyncClient(
             base_url=base_url,
             headers={"Authorization": f"Bearer {api_key}"},
+            timeout=10,
         )
         self._committee_folder_id = committee_folder_id
 
@@ -116,7 +117,7 @@ class CongressusClient:
     async def list_groups_active_members(self, group_id: int) -> AsyncIterator[Member]:
         memberships = await self.list_groups_active_memberships(group_id)
         async for member in self.retrieve_members([ms.member_id for ms in memberships]):
-            if not (member.deleted or member.status.archived):
+            if member.is_active():
                 yield member
 
     async def list_active_committee_memberships(self) -> list[GroupMembership]:
@@ -129,7 +130,7 @@ class CongressusClient:
         memberships = await self.list_active_committee_memberships()
         unique_member_ids = list({m.member_id for m in memberships})
         async for member in self.retrieve_members(unique_member_ids):
-            if not (member.deleted or member.status.archived):
+            if member.is_active():
                 yield member
 
     async def retrieve_group_membership(self, group_membership_id: int) -> GroupMembershipWithGroup:
