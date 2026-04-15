@@ -1,3 +1,4 @@
+from abc import ABC, abstractmethod
 from datetime import date as Date
 from datetime import datetime as DateTime
 from typing import Literal
@@ -5,6 +6,12 @@ from typing import Literal
 from pydantic import BaseModel
 
 from common import SyncModel
+
+
+class Activatable(ABC):
+
+    @abstractmethod
+    def is_active(self) -> bool: ...
 
 
 class Locale(BaseModel):
@@ -89,7 +96,7 @@ class StorageObject(BaseModel):
     folder: StorageFolder | None = None
 
 
-class GroupMembership(BaseModel, SyncModel):
+class GroupMembership(BaseModel, SyncModel, Activatable):
     id: int
     member_id: int
     start: Date
@@ -106,12 +113,15 @@ class GroupMembership(BaseModel, SyncModel):
     def get_id(self) -> str:
         return str(self.id)
 
+    def is_active(self) -> bool:
+        return self.end is None or self.end > Date.today()
+
 
 class GroupMembershipWithGroup(GroupMembership):
     group: "Group"
 
 
-class Group(BaseModel, SyncModel):
+class Group(BaseModel, SyncModel, Activatable):
     id: int
     folder_id: int | None = None
     folder: Folder | None = None
@@ -130,16 +140,22 @@ class Group(BaseModel, SyncModel):
     start: Date
     end: Date | None = None
     memo: str | None = None
-    memberships: list[GroupMembership] | None = None
 
     def get_id(self) -> str:
         return str(self.id)
+
+    def is_active(self) -> bool:
+        return self.end is None or self.end > Date.today()
+
+
+class GroupWithMemberships(Group):
+    memberships: list[GroupMembership]
 
 
 GroupMembershipWithGroup.model_rebuild()
 
 
-class MemberStatus(BaseModel):
+class MemberStatus(BaseModel, Activatable):
     id: int
     name: str
     status_id: int
@@ -148,14 +164,20 @@ class MemberStatus(BaseModel):
     archived: bool
     deceased: bool
 
+    def is_active(self) -> bool:
+        return not self.archived and not self.deceased and (self.member_to is None or self.member_to > Date.today())
 
-class SddMandate(BaseModel):
+
+class SddMandate(BaseModel, Activatable):
     entity_id: int
     entity_name: str
     reference: str
     date: Date
     date_cancelled: Date | None = None
     is_valid: bool
+
+    def is_active(self) -> bool:
+        return self.is_valid and (self.date_cancelled is None or self.date_cancelled > Date.today())
 
 
 class BankAccount(BaseModel):
@@ -166,7 +188,7 @@ class BankAccount(BaseModel):
     sdd_mandates: list[SddMandate] | None = None
 
 
-class Member(BaseModel, SyncModel):
+class Member(BaseModel, SyncModel, Activatable):
     id: int
     username: str
     status: MemberStatus
@@ -212,3 +234,6 @@ class Member(BaseModel, SyncModel):
 
     def get_id(self) -> str:
         return str(self.id)
+
+    def is_active(self) -> bool:
+        return not self.deleted and not self.locked and self.status.is_active()
