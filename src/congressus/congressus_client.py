@@ -1,6 +1,6 @@
 import asyncio
 import math
-from collections.abc import Awaitable
+from collections.abc import AsyncIterator, Awaitable
 from datetime import date
 from typing import Generic, Protocol, TypeVar
 
@@ -83,19 +83,21 @@ class CongressusClient:
     async def list_active_annual_committees(self) -> list[Group]:
         return await self._filter_active(await self.list_annual_committees())
 
-    async def retrieve_group(self, group_id: int) -> Group:
+    async def retrieve_group(self, group_id: int) -> GroupWithMemberships:
         data = await self._get(f"/groups/{group_id}")
-        return Group.model_validate(data)
+        return GroupWithMemberships.model_validate(data)
 
     async def retrieve_member(self, member_id: int) -> Member:
         data = await self._get(f"/members/{member_id}")
         return Member.model_validate(data)
 
-    async def retrieve_groups(self, group_ids: list[int]) -> list[Group]:
-        return list(await asyncio.gather(*[self.retrieve_group(id) for id in group_ids]))
+    async def retrieve_groups(self, group_ids: list[int]) -> AsyncIterator[GroupWithMemberships]:
+        for group in asyncio.as_completed([self.retrieve_group(id) for id in group_ids]):
+            yield await group
 
-    async def retrieve_members(self, member_ids: list[int]) -> list[Member]:
-        return list(await asyncio.gather(*[self.retrieve_member(id) for id in member_ids]))
+    async def retrieve_members(self, member_ids: list[int]) -> AsyncIterator[Member]:
+        for member in asyncio.as_completed([self.retrieve_member(id) for id in member_ids]):
+            yield await member
 
     # endregion
 
@@ -111,10 +113,11 @@ class CongressusClient:
         memberships = await self._depaginate(self.list_group_memberships, group_ids=[group_id])
         return [m for m in memberships if m.end is None or m.end > date.today()]
 
-    async def list_groups_active_members(self, group_id: int) -> list[Member]:
+    async def list_groups_active_members(self, group_id: int) -> AsyncIterator[Member]:
         memberships = await self.list_groups_active_memberships(group_id)
-        members = await self.retrieve_members([ms.member_id for ms in memberships])
-        return [m for m in members if not (m.deleted or m.status.archived)]
+        async for member in self.retrieve_members([ms.member_id for ms in memberships]):
+            if not (member.deleted or member.status.archived):
+                yield member
 
     async def list_active_committee_memberships(self) -> list[GroupMembership]:
         committees = await self.list_active_committees()
@@ -122,17 +125,12 @@ class CongressusClient:
         memberships = await self._depaginate(self.list_group_memberships, group_ids=committee_ids)
         return [m for m in memberships if m.end is None or m.end > date.today()]
 
-    async def list_active_members(self) -> list[Member]:
+    async def list_active_members(self) -> AsyncIterator[Member]:
         memberships = await self.list_active_committee_memberships()
-        unique_member_ids = list(set(m.member_id for m in memberships))
-        potential_active_members = await self.retrieve_members(unique_member_ids)
-
-        active_members = list()
-        for m in potential_active_members:
-            if not (m.deleted or m.status.archived):
-                active_members.append(m)
-
-        return active_members
+        unique_member_ids = list({m.member_id for m in memberships})
+        async for member in self.retrieve_members(unique_member_ids):
+            if not (member.deleted or member.status.archived):
+                yield member
 
     async def retrieve_group_membership(self, group_membership_id: int) -> GroupMembershipWithGroup:
         data = await self._get(f"/groups/memberships/{group_membership_id}")
