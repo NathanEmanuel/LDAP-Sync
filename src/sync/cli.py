@@ -13,7 +13,7 @@ from typing import Any, TypeVar
 from dotenv import load_dotenv
 from ldap3.core.exceptions import LDAPBindError
 
-from congressus import Client as CongressusClient
+from congressus import CongressusClient
 from ldap import LdapClient
 from sync import LdapSync
 

@@ -22,7 +22,7 @@ class PaginatedCallable(Protocol[T]):
     def __call__(self, *args, page: int = 1, **kwargs) -> Awaitable[Page[T]]: ...
 
 
-class Client:
+class CongressusClient:
 
     def __init__(self, base_url: str, api_key: str, committee_folder_id: int):
         self._client = httpx.AsyncClient(

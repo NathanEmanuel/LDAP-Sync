@@ -1,2 +1,2 @@
-from .client import Client
+from .congressus_client import CongressusClient
 from .models import *

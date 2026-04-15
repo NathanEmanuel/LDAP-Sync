@@ -5,7 +5,7 @@ import httpx
 import pytest
 import respx
 
-from congressus.client import Client
+from congressus import CongressusClient
 from congressus.models import Group, GroupMembership
 
 BASE_URL = "https://api.congressus.nl/v30"
@@ -13,13 +13,13 @@ FOLDER_ID = 123
 
 
 @pytest.fixture
-async def client() -> AsyncGenerator[Client, None]:
-    async with Client(BASE_URL, api_key="test-key", committee_folder_id=FOLDER_ID) as c:
+async def client() -> AsyncGenerator[CongressusClient, None]:
+    async with CongressusClient(BASE_URL, api_key="test-key", committee_folder_id=FOLDER_ID) as c:
         yield c
 
 
 @respx.mock
-async def test_retrieve_group(client: Client, sample_group_data: dict) -> None:
+async def test_retrieve_group(client: CongressusClient, sample_group_data: dict) -> None:
     respx.get(f"{BASE_URL}/groups/90364").mock(return_value=httpx.Response(200, json=sample_group_data))
 
     result = await client.retrieve_group(90364)
@@ -32,14 +32,14 @@ async def test_retrieve_group(client: Client, sample_group_data: dict) -> None:
 
 
 @respx.mock
-async def test_retrieve_group_not_found(client: Client) -> None:
+async def test_retrieve_group_not_found(client: CongressusClient) -> None:
     respx.get(f"{BASE_URL}/groups/0").mock(return_value=httpx.Response(404))
     with pytest.raises(httpx.HTTPStatusError):
         await client.retrieve_group(0)
 
 
 @respx.mock
-async def test_list_standing_committees(client: Client, sample_active_standing_committee_data: dict) -> None:
+async def test_list_standing_committees(client: CongressusClient, sample_active_standing_committee_data: dict) -> None:
 
     respx.get(f"{BASE_URL}/groups").mock(return_value=httpx.Response(200, json=sample_active_standing_committee_data))
 
@@ -55,7 +55,7 @@ async def test_list_standing_committees(client: Client, sample_active_standing_c
 
 
 @respx.mock
-async def test_list_active_standing_committees(client: Client, sample_active_standing_committee_data: dict) -> None:
+async def test_list_active_standing_committees(client: CongressusClient, sample_active_standing_committee_data: dict) -> None:
 
     respx.get(f"{BASE_URL}/groups", params={"folder_id": FOLDER_ID, "page": 1}).mock(
         return_value=httpx.Response(200, json=sample_active_standing_committee_data)
@@ -72,7 +72,7 @@ async def test_list_active_standing_committees(client: Client, sample_active_sta
 
 
 @respx.mock
-async def test_retrieve_group_membership(client: Client, sample_membership_data: dict) -> None:
+async def test_retrieve_group_membership(client: CongressusClient, sample_membership_data: dict) -> None:
     respx.get(f"{BASE_URL}/groups/memberships/1").mock(return_value=httpx.Response(200, json=sample_membership_data))
 
     result = await client.retrieve_group_membership(1)
@@ -88,14 +88,14 @@ async def test_retrieve_group_membership(client: Client, sample_membership_data:
 
 
 @respx.mock
-async def test_retrieve_group_membership_not_found(client: Client) -> None:
+async def test_retrieve_group_membership_not_found(client: CongressusClient) -> None:
     respx.get(f"{BASE_URL}/groups/memberships/0").mock(return_value=httpx.Response(404))
     with pytest.raises(httpx.HTTPStatusError):
         await client.retrieve_group_membership(0)
 
 
 @respx.mock
-async def test_retrieve_member(client: Client, sample_member_data: dict) -> None:
+async def test_retrieve_member(client: CongressusClient, sample_member_data: dict) -> None:
     respx.get(f"{BASE_URL}/members/1965").mock(return_value=httpx.Response(200, json=sample_member_data))
 
     result = await client.retrieve_member(1965)
