@@ -1,8 +1,8 @@
+import asyncio
 import logging
 
 from congressus import CongressusClient
 from congressus.models import Group as CongressusGroup
-from congressus.models import GroupMembership as CongressusGroupMembership
 from congressus.models import Member as CongressusMember
 from ldap import LdapClient
 from ldap.models import Group as LdapGroup
@@ -22,40 +22,46 @@ class LdapSync:
         self._congressus = congressus_client
         self._ldap = ldap_client
         self._ldap_model_factory = ldap_model_factory
+        self._user_locks: dict[int, asyncio.Lock] = {}
 
     async def sync_all(self, dry_run: bool = False) -> None:
         active_committees = await self._congressus.list_active_committees()
-        committee_ids = [int(committee.get_id()) for committee in active_committees]
-        await self.sync_groups(committee_ids, dry_run=dry_run)
+        await self._sync_groups(active_committees, dry_run=dry_run)
 
-    async def sync_groups(self, group_ids: list[int], dry_run: bool = False) -> None:
-        async for congressus_group in self._congressus.retrieve_groups(group_ids):
+    async def _sync_groups(self, groups: list[CongressusGroup], dry_run: bool = False) -> None:
+        async with asyncio.TaskGroup() as tg:
+            for group in groups:
+                tg.create_task(self._sync_group(group, dry_run))
 
-            if not dry_run:
-                ldap_group = self.create_group(congressus_group, ignore_existing=True)
-            else:
-                ldap_group = self._ldap_model_factory.create_group_from_congressus_group(congressus_group)
+    async def _sync_group(self, congressus_group: CongressusGroup, dry_run: bool = False) -> None:
+        if not dry_run:
+            ldap_group = self.create_group(congressus_group, ignore_existing=True)
+        else:
+            ldap_group = self._ldap_model_factory.create_group_from_congressus_group(congressus_group)
 
-            await self._sync_group_memberships(ldap_group, congressus_group.memberships, dry_run=dry_run)
-            logging.info(f"Synced group: {congressus_group.name} (ID: {congressus_group.id})")
+        await self._sync_group_memberships(ldap_group, dry_run=dry_run)
 
-    async def _sync_group_memberships(
-        self, ldap_group: LdapGroup, congressus_group_memberships: list[CongressusGroupMembership], dry_run: bool = False
-    ) -> None:
-        for membership in congressus_group_memberships:
+        logging.info(f"Synced group: {congressus_group.name} (ID: {congressus_group.id})")
 
-            if not membership.is_active():
-                continue
+    async def _sync_group_memberships(self, ldap_group: LdapGroup, dry_run: bool = False) -> None:
+        async with asyncio.TaskGroup() as tg:
+            async for member in self._congressus.list_groups_active_members(int(ldap_group.get_id())):
 
-            member = await self._congressus.retrieve_member(membership.member_id)
-            if not member.is_active():
-                continue
+                if dry_run:
+                    logging.info(f"Would sync {member.first_name} {member.last_name} to {ldap_group.get_name()}")
+                    continue
 
-            if not dry_run:
-                ldap_user = self.create_account(member)
-                self._ldap.add_to_group(ldap_user, ldap_group)
-            else:
-                logging.info(f"Would add member {member.first_name} {member.last_name} to group {ldap_group.get_name()}")
+                tg.create_task(self._sync_member_to_group(member, ldap_group))
+
+    async def _sync_member_to_group(self, member: CongressusMember, ldap_group: LdapGroup) -> None:
+        async with self._get_user_lock(member.id):
+            ldap_user = self.create_account(member)
+            self._ldap.add_to_group(ldap_user, ldap_group)
+
+    def _get_user_lock(self, member_id: int) -> asyncio.Lock:
+        if member_id not in self._user_locks:
+            self._user_locks[member_id] = asyncio.Lock()
+        return self._user_locks[member_id]
 
     def create_group(self, congressus_group: CongressusGroup, ignore_existing: bool = False) -> LdapGroup:
         ldap_group = self._ldap_model_factory.create_group_from_congressus_group(congressus_group)
