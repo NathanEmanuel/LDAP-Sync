@@ -1,17 +1,25 @@
+import asyncio
+import math
 from collections.abc import Awaitable
 from datetime import date
-from typing import Protocol, TypeVar
+from typing import Generic, Protocol, TypeVar
 
 import httpx
 
-from .models import *
+from congressus.models import *
 
 T = TypeVar("T")
-PAGE_REQUEST_LIMIT = 100
+PAGE_SIZE = 100
+PAGE_REQUEST_LIMIT = 10
+
+
+class Page(BaseModel, Generic[T]):
+    data: list[T]
+    total: int
 
 
 class PaginatedCallable(Protocol[T]):
-    def __call__(self, *args, page: int = 1, page_size: int = 25, **kwargs) -> Awaitable[list[T]]: ...
+    def __call__(self, *args, page: int = 1, **kwargs) -> Awaitable[Page[T]]: ...
 
 
 class Client:
@@ -29,28 +37,30 @@ class Client:
         return resp.json()
 
     async def _depaginate(self, method: PaginatedCallable[T], *args, **kwargs) -> list[T]:
-        items: list[T] = list()
+        first = await method(*args, page=1, **kwargs)
 
-        for page in range(1, PAGE_REQUEST_LIMIT):
-            new = await method(*args, page=page, **kwargs)
-            if not new:
-                break
-            items.extend(new)
-        else:
-            raise RuntimeError("Too many pages requested. Stopping to avoid infinite loop.")
+        if not first.data:
+            return []
 
-        return items
+        total_pages = min(math.ceil(first.total / PAGE_SIZE), PAGE_REQUEST_LIMIT)
 
-    # region Groups and Committees
+        if total_pages == 1:
+            return first.data
 
-    async def list_groups(self, *, folder_ids: list[int] = [], page: int = 1, page_size: int = 25) -> list[Group]:
-        data = await self._get("/groups", folder_id=folder_ids, page=page, page_size=page_size)
-        return [Group.model_validate(item) for item in data["data"]]
+        rest = await asyncio.gather(*[method(*args, page=p, **kwargs) for p in range(2, total_pages + 1)])
 
-    async def list_standing_committees(self, *, page: int = 1, page_size: int = 25) -> list[Group]:
-        return await self.list_groups(folder_ids=[self._committee_folder_id], page=page, page_size=page_size)
+        return first.data + [item for page in rest for item in page.data]
 
-    async def list_annual_committees(self, *, page: int = 1, page_size: int = 25) -> list[Group]:
+    # region Groups and Members
+
+    async def list_groups(self, *, folder_ids: list[int] = [], page: int = 1) -> Page[Group]:
+        data = await self._get("/groups", folder_id=folder_ids, page=page, page_size=PAGE_SIZE)
+        return Page[Group].model_validate(data)
+
+    async def list_standing_committees(self) -> list[Group]:
+        return await self._depaginate(self.list_groups, folder_ids=[self._committee_folder_id])
+
+    async def list_annual_committees(self) -> list[Group]:
         response = await self._get("/group-folders/recursive")
         group_folders = [FolderWithChildren.model_validate(item) for item in response["data"]]
         committee_folder = next((folder for folder in group_folders if folder.id == self._committee_folder_id), None)
@@ -58,34 +68,53 @@ class Client:
             return []
 
         annual_committee_folders_ids = [folder.id for folder in committee_folder.children]
-        return await self.list_groups(folder_ids=annual_committee_folders_ids, page=page, page_size=page_size)
+        return await self._depaginate(self.list_groups, folder_ids=annual_committee_folders_ids)
 
     async def list_active_committees(self) -> list[Group]:
-        committees = await self.list_active_standing_committees()
-        committees.extend(await self.list_active_annual_committees())
-        return committees
+        standing, annual = await asyncio.gather(self.list_active_standing_committees(), self.list_active_annual_committees())
+        return standing + annual
+
+    async def _filter_active(self, group: list[Group]) -> list[Group]:
+        return [g for g in group if g.end is None or g.end > date.today()]
 
     async def list_active_standing_committees(self) -> list[Group]:
-        committees = await self._depaginate(self.list_standing_committees)
-        return [c for c in committees if c.end is None or c.end > date.today()]
+        return await self._filter_active(await self.list_standing_committees())
 
     async def list_active_annual_committees(self) -> list[Group]:
-        committees = await self._depaginate(self.list_annual_committees)
-        return [c for c in committees if c.end is None or c.end > date.today()]
+        return await self._filter_active(await self.list_annual_committees())
 
     async def retrieve_group(self, group_id: int) -> Group:
         data = await self._get(f"/groups/{group_id}")
         return Group.model_validate(data)
+
+    async def retrieve_member(self, member_id: int) -> Member:
+        data = await self._get(f"/members/{member_id}")
+        return Member.model_validate(data)
+
+    async def retrieve_groups(self, group_ids: list[int]) -> list[Group]:
+        return list(await asyncio.gather(*[self.retrieve_group(id) for id in group_ids]))
+
+    async def retrieve_members(self, member_ids: list[int]) -> list[Member]:
+        return list(await asyncio.gather(*[self.retrieve_member(id) for id in member_ids]))
 
     # endregion
 
     # region Group Memberships
 
     async def list_group_memberships(
-        self, *, group_ids: list[int] = [], member_ids: list[int] = [], page: int = 1, page_size: int = 25
-    ) -> list[GroupMembership]:
-        data = await self._get("/groups/memberships", group_id=group_ids, member_id=member_ids, page=page, page_size=page_size)
-        return [GroupMembership.model_validate(item) for item in data["data"]]
+        self, *, group_ids: list[int] = [], member_ids: list[int] = [], page: int = 1
+    ) -> Page[GroupMembership]:
+        data = await self._get("/groups/memberships", group_id=group_ids, member_id=member_ids, page=page, page_size=PAGE_SIZE)
+        return Page[GroupMembership].model_validate(data)
+
+    async def list_groups_active_memberships(self, group_id: int) -> list[GroupMembership]:
+        memberships = await self._depaginate(self.list_group_memberships, group_ids=[group_id])
+        return [m for m in memberships if m.end is None or m.end > date.today()]
+
+    async def list_groups_active_members(self, group_id: int) -> list[Member]:
+        memberships = await self.list_groups_active_memberships(group_id)
+        members = await self.retrieve_members([ms.member_id for ms in memberships])
+        return [m for m in members if not (m.deleted or m.status.archived)]
 
     async def list_active_committee_memberships(self) -> list[GroupMembership]:
         committees = await self.list_active_committees()
@@ -93,31 +122,21 @@ class Client:
         memberships = await self._depaginate(self.list_group_memberships, group_ids=committee_ids)
         return [m for m in memberships if m.end is None or m.end > date.today()]
 
-    async def list_active_members(self, *, page: int = 1, page_size: int = 50) -> list[Member]:
+    async def list_active_members(self) -> list[Member]:
         memberships = await self.list_active_committee_memberships()
-        member_ids = list(set(m.member_id for m in memberships))
-        start = (page - 1) * page_size
-        end = start + page_size
-        member_ids = member_ids[start:end]
+        unique_member_ids = list(set(m.member_id for m in memberships))
+        potential_active_members = await self.retrieve_members(unique_member_ids)
 
-        members = []
-        for id in member_ids:
-            member = await self.retrieve_member(id)
-            if not (member.deleted or member.status.archived):
-                members.append(member)
-        return members
+        active_members = list()
+        for m in potential_active_members:
+            if not (m.deleted or m.status.archived):
+                active_members.append(m)
+
+        return active_members
 
     async def retrieve_group_membership(self, group_membership_id: int) -> GroupMembershipWithGroup:
         data = await self._get(f"/groups/memberships/{group_membership_id}")
         return GroupMembershipWithGroup.model_validate(data)
-
-    # endregion
-
-    # region Members
-
-    async def retrieve_member(self, member_id: int) -> Member:
-        data = await self._get(f"/members/{member_id}")
-        return Member.model_validate(data)
 
     # endregion
 
