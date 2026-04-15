@@ -49,19 +49,20 @@ class LdapClient:
 
         return self._connection
 
-    def create_if_not_exists(self, entry: Entry, ignore_existing: bool = True) -> bool:
+    def create(self, entry: Entry, ignore_existing: bool = False) -> bool:
         try:
-            self.get_connection().add(entry.dn, attributes=entry.serialize())
+            self.get_connection().add(entry.dn, attributes=entry.serialize_for_creation())
+            logging.info(f"Created {type(entry).__name__} {entry.get_name()}")
             return True
-        except ldap3_exceptions.LDAPEntryAlreadyExistsResult as e:
+        except ldap3_exceptions.LDAPEntryAlreadyExistsResult:
             if ignore_existing:
-                logging.debug(f"{type(entry).__name__} {entry.getName()} already exists. Skipping creation.")
+                logging.debug(f"{type(entry).__name__} {entry.get_name()} already exists. Skipping creation.")
                 return False
-            raise e
+            raise
 
     def delete(self, entry: Entry) -> None:
         self.get_connection().delete(entry.dn)
-        logging.debug(f"Deleted {type(entry).__name__} {entry.getName()}")
+        logging.info(f"Deleted {type(entry).__name__} {entry.get_name()}")
 
     def enable_user(self, user: User) -> None:
         self.modify_user_uac(user, UserAccountControl.NORMAL_ACCOUNT)
@@ -71,12 +72,12 @@ class LdapClient:
 
     def modify_user_uac(self, user: User, uac: UserAccountControl):
         self.get_connection().modify(user.dn, {"userAccountControl": [(MODIFY_REPLACE, [int(uac)])]})
-        logging.debug(f"Modified user {user.dn} with UAC {uac}")
+        logging.info(f"Modified user {user.dn} with UAC {uac}")
 
     def add_to_group(self, member: User | Group, group: Group) -> None:
         self.get_connection().modify(group.dn, {"member": [(MODIFY_ADD, [member.dn])]})
-        logging.debug(f"Added {member.name} to {group.name}")
+        logging.info(f"Added {type(member).__name__} {member.get_name()} to {type(group).__name__} {group.get_name()}")
 
     def remove_from_group(self, member: User | Group, group: Group) -> None:
         self.get_connection().modify(group.dn, {"member": [(MODIFY_DELETE, [member.dn])]})
-        logging.debug(f"Removed {member.name} from {group.name}")
+        logging.info(f"Removed {type(member).__name__} {member.get_name()} from {type(group).__name__} {group.get_name()}")
