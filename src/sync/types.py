@@ -15,7 +15,7 @@ class DestinationClient(ABC):
     def create_user(self, user: DestinationUser, ignore_existing: bool = False) -> bool: ...
 
     @abstractmethod
-    def add_to_group(self, member: DestinationModel, group: DestinationGroup) -> None: ...
+    def add_to_group(self, member: DestinationModel, group: DestinationGroup, ignore_existing: bool = False) -> None: ...
 
     @abstractmethod
     def __enter__(self) -> DestinationClient: ...
@@ -75,7 +75,8 @@ class SourceModel(Syncable):
 
 class DestinationModel(Syncable):
 
-    def create_in(self, destination: DestinationClient) -> None: ...
+    @abstractmethod
+    def create_in(self, destination: DestinationClient, ignore_existing: bool = False) -> None: ...
 
 
 class SourceGroup(SourceModel):
@@ -85,7 +86,7 @@ class SourceGroup(SourceModel):
 class DestinationGroup(DestinationModel):
 
     @abstractmethod
-    def add(self, member: DestinationModel, destination: DestinationClient) -> None: ...
+    def add(self, member: DestinationModel, destination: DestinationClient, ignore_existing: bool = False) -> None: ...
 
 
 class SourceUser(SourceModel):

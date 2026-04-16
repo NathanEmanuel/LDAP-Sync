@@ -43,8 +43,8 @@ class Group(Entry, DestinationGroup):
             "groupType": int(GroupType.GLOBAL_SECURITY),
         }
 
-    def create_in(self, destination: DestinationClient) -> None:
-        destination.create_group(self, ignore_existing=True)
+    def create_in(self, destination: DestinationClient, ignore_existing: bool = False) -> None:
+        destination.create_group(self, ignore_existing)
 
-    def add(self, member: DestinationModel, destination: DestinationClient) -> None:
-        destination.add_to_group(member, self)
+    def add(self, member: DestinationModel, destination: DestinationClient, ignore_existing: bool = False) -> None:
+        destination.add_to_group(member, self, ignore_existing)

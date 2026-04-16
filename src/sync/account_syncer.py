@@ -48,7 +48,7 @@ class AccountSyncer:
 
     async def _sync_member_to_group(self, member: DestinationModel, group: DestinationGroup) -> None:
         async with self._get_destination_lock(int(member.get_id())):
-            group.add(member, self._destination)
+            group.add(member, self._destination, ignore_existing=True)
 
     def _get_destination_lock(self, id: int) -> asyncio.Lock:
         if id not in self._user_locks:

@@ -78,5 +78,5 @@ class User(Entry, DestinationUser):
             "userAccountControl": int(UserAccountControl.NORMAL_ACCOUNT),
         }
 
-    def create_in(self, destination: DestinationClient) -> None:
-        destination.create_user(self, ignore_existing=True)
+    def create_in(self, destination: DestinationClient, ignore_existing: bool = False) -> None:
+        destination.create_user(self, ignore_existing)

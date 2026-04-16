@@ -29,11 +29,11 @@ class LdapClient(DestinationClient):
         assert isinstance(user, User)
         return self.create(user, ignore_existing, autocreate_ou=True)
 
-    def add_to_group(self, member: DestinationModel, group: DestinationGroup) -> None:
+    def add_to_group(self, member: DestinationModel, group: DestinationGroup, ignore_existing: bool = False) -> None:
         assert isinstance(member, (User, Group))
         assert isinstance(group, Group)
-        member.create_in(self)
-        self._add_to_group(member, group)
+        member.create_in(self, ignore_existing)
+        self._add_to_group(member, group, ignore_existing)
 
     # endregion
 
@@ -110,9 +110,17 @@ class LdapClient(DestinationClient):
         self.get_connection().modify(user.dn, {"userAccountControl": [(MODIFY_REPLACE, [int(uac)])]})
         logging.info(f"Modified user {user.dn} with UAC {uac}")
 
-    def _add_to_group(self, member: Union[User, Group], group: Group) -> None:
-        self.get_connection().modify(group.dn, {"member": [(MODIFY_ADD, [member.dn])]})
-        logging.info(f"Added {type(member).__name__} {member.get_name()} to {type(group).__name__} {group.get_name()}")
+    def _add_to_group(self, member: Union[User, Group], group: Group, ignore_existing: bool = False) -> bool:
+        try:
+            self.get_connection().modify(group.dn, {"member": [(MODIFY_ADD, [member.dn])]})
+            logging.info(f"Added {type(member).__name__} {member.get_name()} to {type(group).__name__} {group.get_name()}")
+            return True
+        except ldap3_exceptions.LDAPEntryAlreadyExistsResult:
+            if ignore_existing:
+                logging.debug(f"{type(member).__name__} {member.get_name()} is already a member of {type(group).__name__} {group.get_name()}. Skipping.")
+                return False
+            raise
+
 
     def remove_from_group(self, member: Union[User, Group], group: Group) -> None:
         self.get_connection().modify(group.dn, {"member": [(MODIFY_DELETE, [member.dn])]})
