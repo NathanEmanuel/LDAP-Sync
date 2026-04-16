@@ -8,10 +8,10 @@ from pydantic import BaseModel
 from common import SyncableModel
 
 
-class Activatable(ABC):
+class Expirable(ABC):
 
     @abstractmethod
-    def is_active(self) -> bool: ...
+    def is_current(self) -> bool: ...
 
 
 class Locale(BaseModel):
@@ -96,7 +96,7 @@ class StorageObject(BaseModel):
     folder: Optional[StorageFolder] = None
 
 
-class GroupMembership(BaseModel, SyncableModel, Activatable):
+class GroupMembership(BaseModel, SyncableModel, Expirable):
     id: int
     member_id: int
     start: Date
@@ -113,7 +113,7 @@ class GroupMembership(BaseModel, SyncableModel, Activatable):
     def get_id(self) -> str:
         return str(self.id)
 
-    def is_active(self) -> bool:
+    def is_current(self) -> bool:
         return self.end is None or self.end > Date.today()
 
 
@@ -121,7 +121,7 @@ class GroupMembershipWithGroup(GroupMembership):
     group: "Group"
 
 
-class Group(BaseModel, SyncableModel, Activatable):
+class Group(BaseModel, SyncableModel, Expirable):
     id: int
     folder_id: Optional[int] = None
     folder: Optional[Folder] = None
@@ -144,7 +144,7 @@ class Group(BaseModel, SyncableModel, Activatable):
     def get_id(self) -> str:
         return str(self.id)
 
-    def is_active(self) -> bool:
+    def is_current(self) -> bool:
         return self.end is None or self.end > Date.today()
 
 
@@ -155,7 +155,7 @@ class GroupWithMemberships(Group):
 GroupMembershipWithGroup.model_rebuild()
 
 
-class MemberStatus(BaseModel, Activatable):
+class MemberStatus(BaseModel, Expirable):
     id: int
     name: str
     status_id: int
@@ -164,11 +164,11 @@ class MemberStatus(BaseModel, Activatable):
     archived: bool
     deceased: bool
 
-    def is_active(self) -> bool:
+    def is_current(self) -> bool:
         return not self.archived and not self.deceased and (self.member_to is None or self.member_to > Date.today())
 
 
-class SddMandate(BaseModel, Activatable):
+class SddMandate(BaseModel, Expirable):
     entity_id: int
     entity_name: str
     reference: str
@@ -176,7 +176,7 @@ class SddMandate(BaseModel, Activatable):
     date_cancelled: Optional[Date] = None
     is_valid: bool
 
-    def is_active(self) -> bool:
+    def is_current(self) -> bool:
         return self.is_valid and (self.date_cancelled is None or self.date_cancelled > Date.today())
 
 
@@ -188,7 +188,7 @@ class BankAccount(BaseModel):
     sdd_mandates: Optional[list[SddMandate]] = None
 
 
-class Member(BaseModel, SyncableModel, Activatable):
+class Member(BaseModel, SyncableModel, Expirable):
     id: int
     username: str
     status: MemberStatus
@@ -235,5 +235,5 @@ class Member(BaseModel, SyncableModel, Activatable):
     def get_id(self) -> str:
         return str(self.id)
 
-    def is_active(self) -> bool:
-        return not self.deleted and not self.locked and self.status.is_active()
+    def is_current(self) -> bool:
+        return not self.deleted and not self.locked and self.status.is_current()
