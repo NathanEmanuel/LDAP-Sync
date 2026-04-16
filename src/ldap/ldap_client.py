@@ -50,8 +50,11 @@ class LdapClient:
 
         return self._connection
 
-    def create(self, entry: Entry, ignore_existing: bool = False) -> bool:
+    def create(self, entry: Entry, ignore_existing: bool = False, autocreate_ou: bool = False) -> bool:
         try:
+            if autocreate_ou:
+                self._create_ou(entry.ou, ignore_existing=True)
+
             self.get_connection().add(entry.dn, attributes=entry.serialize_for_creation())
             logging.info(f"Created {type(entry).__name__} {entry.get_name()}")
             return True
@@ -60,6 +63,25 @@ class LdapClient:
                 logging.debug(f"{type(entry).__name__} {entry.get_name()} already exists. Skipping creation.")
                 return False
             raise
+
+    def _create_ou(self, ou: str, ignore_existing: bool = False) -> bool:
+        ou_components = ou.split(",")
+
+        if not all(part.startswith("OU=") or part.startswith("DC=") for part in ou_components):
+            raise ValueError(f"Invalid OU string: {ou}")
+
+        try:
+            self.get_connection().add(ou, attributes={"objectClass": ["top", "organizationalUnit"]})
+            return True
+        except ldap3_exceptions.LDAPEntryAlreadyExistsResult:
+            if ignore_existing:
+                logging.debug(f"OU {ou} already exists. Skipping creation.")
+                return False
+            raise
+        except ldap3_exceptions.LDAPNoSuchObjectResult:
+            self._create_ou(",".join(ou_components[1:]), ignore_existing)
+            self.get_connection().add(ou, attributes={"objectClass": ["top", "organizationalUnit"]})
+            return True
 
     def delete(self, entry: Entry) -> None:
         self.get_connection().delete(entry.dn)
