@@ -1,7 +1,7 @@
 from abc import ABC, abstractmethod
 
 
-class SyncModel(ABC):
+class SyncableModel(ABC):
 
     @abstractmethod
     def get_id(self) -> str: ...

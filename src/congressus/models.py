@@ -5,7 +5,7 @@ from typing import Literal, Optional
 
 from pydantic import BaseModel
 
-from common import SyncModel
+from common import SyncableModel
 
 
 class Activatable(ABC):
@@ -96,7 +96,7 @@ class StorageObject(BaseModel):
     folder: Optional[StorageFolder] = None
 
 
-class GroupMembership(BaseModel, SyncModel, Activatable):
+class GroupMembership(BaseModel, SyncableModel, Activatable):
     id: int
     member_id: int
     start: Date
@@ -121,7 +121,7 @@ class GroupMembershipWithGroup(GroupMembership):
     group: "Group"
 
 
-class Group(BaseModel, SyncModel, Activatable):
+class Group(BaseModel, SyncableModel, Activatable):
     id: int
     folder_id: Optional[int] = None
     folder: Optional[Folder] = None
@@ -188,7 +188,7 @@ class BankAccount(BaseModel):
     sdd_mandates: Optional[list[SddMandate]] = None
 
 
-class Member(BaseModel, SyncModel, Activatable):
+class Member(BaseModel, SyncableModel, Activatable):
     id: int
     username: str
     status: MemberStatus

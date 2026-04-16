@@ -1,11 +1,11 @@
 from abc import abstractmethod
 from dataclasses import dataclass
 
-from common import SyncModel
+from common import SyncableModel
 
 
 @dataclass
-class Entry(SyncModel):
+class Entry(SyncableModel):
     cn: str
     ou: str
 

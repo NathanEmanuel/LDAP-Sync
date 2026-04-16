@@ -1,1 +1,1 @@
-from .sync_model import SyncModel
+from .syncable_model import SyncableModel
