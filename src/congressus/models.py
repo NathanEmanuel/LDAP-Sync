@@ -1,7 +1,7 @@
 from abc import ABC, abstractmethod
 from datetime import date as Date
 from datetime import datetime as DateTime
-from typing import Literal
+from typing import Literal, Optional
 
 from pydantic import BaseModel
 
@@ -15,36 +15,36 @@ class Activatable(ABC):
 
 
 class Locale(BaseModel):
-    id: int | None = None
-    name: str | None = None
-    code: str | None = None
+    id: Optional[int] = None
+    name: Optional[str] = None
+    code: Optional[str] = None
 
 
 class Country(BaseModel):
-    id: int | None = None
-    name: str | None = None
-    name_local: str | None = None
-    name_locale_nl: str | None = None
-    name_locale_en: str | None = None
-    country_code: str | None = None
-    calling_code: str | None = None
-    default_locale: Locale | None = None
+    id: Optional[int] = None
+    name: Optional[str] = None
+    name_local: Optional[str] = None
+    name_locale_nl: Optional[str] = None
+    name_locale_en: Optional[str] = None
+    country_code: Optional[str] = None
+    calling_code: Optional[str] = None
+    default_locale: Optional[Locale] = None
 
 
 class Address(BaseModel):
-    address: str | None = None
-    zip: str | None = None
-    city: str | None = None
-    province: str | None = None
-    country: Country | None = None
-    lat: float | None = None
-    lng: float | None = None
-    location: str | None = None
+    address: Optional[str] = None
+    zip: Optional[str] = None
+    city: Optional[str] = None
+    province: Optional[str] = None
+    country: Optional[Country] = None
+    lat: Optional[float] = None
+    lng: Optional[float] = None
+    location: Optional[str] = None
 
 
 class StorageFolder(BaseModel):
     id: int
-    parent_id: int | None = None
+    parent_id: Optional[int] = None
     name: str
     slug: str
     path: str
@@ -54,7 +54,7 @@ class StorageFolder(BaseModel):
 
 class Folder(BaseModel):
     id: int
-    parent_id: int | None = None
+    parent_id: Optional[int] = None
     name: str
     slug: str
     path: str
@@ -80,35 +80,35 @@ class PhoneNumber(BaseModel):
 
 class StorageObject(BaseModel):
     id: int
-    url: str | None = None
-    url_sm: str | None = None
-    url_md: str | None = None
-    url_lg: str | None = None
-    is_image: bool | None = None
-    type: Literal["members", "files", "template", "groups", "user", "gallery", "contracts"] | None = None
-    filename: str | None = None
-    name: str | None = None
+    url: Optional[str] = None
+    url_sm: Optional[str] = None
+    url_md: Optional[str] = None
+    url_lg: Optional[str] = None
+    is_image: Optional[bool] = None
+    type: Optional[Literal["members", "files", "template", "groups", "user", "gallery", "contracts"]] = None
+    filename: Optional[str] = None
+    name: Optional[str] = None
     size: int
     extension: str
     content_type: str
-    image_width: int | None = None
-    image_height: int | None = None
-    folder: StorageFolder | None = None
+    image_width: Optional[int] = None
+    image_height: Optional[int] = None
+    folder: Optional[StorageFolder] = None
 
 
 class GroupMembership(BaseModel, SyncModel, Activatable):
     id: int
     member_id: int
     start: Date
-    end: Date | None = None
-    function: str | None = None
-    may_edit_profile: bool | None = None
-    may_manage_memberships: bool | None = None
-    may_manage_storage_objects: bool | None = None
-    is_self_enroll: bool | None = None
-    order_type: Literal["lastname", "date", "sorted", "function"] | None = None
-    order: int | None = None
-    group_id: int | None = None  # not provided if object is nested under Group
+    end: Optional[Date] = None
+    function: Optional[str] = None
+    may_edit_profile: Optional[bool] = None
+    may_manage_memberships: Optional[bool] = None
+    may_manage_storage_objects: Optional[bool] = None
+    is_self_enroll: Optional[bool] = None
+    order_type: Optional[Literal["lastname", "date", "sorted", "function"]] = None
+    order: Optional[int] = None
+    group_id: Optional[int] = None  # not provided if object is nested under Group
 
     def get_id(self) -> str:
         return str(self.id)
@@ -123,23 +123,23 @@ class GroupMembershipWithGroup(GroupMembership):
 
 class Group(BaseModel, SyncModel, Activatable):
     id: int
-    folder_id: int | None = None
-    folder: Folder | None = None
+    folder_id: Optional[int] = None
+    folder: Optional[Folder] = None
     name: str
-    address: Address | None = None
-    postal_address: Address | None = None
-    phone: PhoneNumber | None = None
-    description: str | None = None
-    description_short: str | None = None
-    email: str | None = None
-    url: str | None = None
-    logo: StorageObject | None = None
+    address: Optional[Address] = None
+    postal_address: Optional[Address] = None
+    phone: Optional[PhoneNumber] = None
+    description: Optional[str] = None
+    description_short: Optional[str] = None
+    email: Optional[str] = None
+    url: Optional[str] = None
+    logo: Optional[StorageObject] = None
     slug: str
     path: str
     published: bool
     start: Date
-    end: Date | None = None
-    memo: str | None = None
+    end: Optional[Date] = None
+    memo: Optional[str] = None
 
     def get_id(self) -> str:
         return str(self.id)
@@ -160,7 +160,7 @@ class MemberStatus(BaseModel, Activatable):
     name: str
     status_id: int
     member_from: Date
-    member_to: Date | None = None
+    member_to: Optional[Date] = None
     archived: bool
     deceased: bool
 
@@ -173,7 +173,7 @@ class SddMandate(BaseModel, Activatable):
     entity_name: str
     reference: str
     date: Date
-    date_cancelled: Date | None = None
+    date_cancelled: Optional[Date] = None
     is_valid: bool
 
     def is_active(self) -> bool:
@@ -181,11 +181,11 @@ class SddMandate(BaseModel, Activatable):
 
 
 class BankAccount(BaseModel):
-    iban: str | None = None
-    bic: str | None = None
-    iban_formatted: str | None = None
-    iban_masked: str | None = None
-    sdd_mandates: list[SddMandate] | None = None
+    iban: Optional[str] = None
+    bic: Optional[str] = None
+    iban_formatted: Optional[str] = None
+    iban_masked: Optional[str] = None
+    sdd_mandates: Optional[list[SddMandate]] = None
 
 
 class Member(BaseModel, SyncModel, Activatable):
@@ -193,43 +193,43 @@ class Member(BaseModel, SyncModel, Activatable):
     username: str
     status: MemberStatus
     statuses: list[MemberStatus]
-    gender: Literal["m", "f", "o", ""] | None = None
-    prefix: str | None = None
-    initials: str | None = None
-    nickname: str | None = None
-    given_name: str | None = None
-    first_name: str | None = None
-    primary_last_name_main: str | None = None
-    primary_last_name_prefix: str | None = None
+    gender: Optional[Literal["m", "f", "o", ""]] = None
+    prefix: Optional[str] = None
+    initials: Optional[str] = None
+    nickname: Optional[str] = None
+    given_name: Optional[str] = None
+    first_name: Optional[str] = None
+    primary_last_name_main: Optional[str] = None
+    primary_last_name_prefix: Optional[str] = None
     primary_last_name: str
-    secondary_last_name_main: str | None = None
-    secondary_last_name_prefix: str | None = None
-    secondary_last_name: str | None = None
-    last_name_display: str | None = None
+    secondary_last_name_main: Optional[str] = None
+    secondary_last_name_prefix: Optional[str] = None
+    secondary_last_name: Optional[str] = None
+    last_name_display: Optional[str] = None
     last_name: str
-    search_name: str | None = None
-    suffix: str | None = None
-    date_of_birth: Date | None = None
+    search_name: Optional[str] = None
+    suffix: Optional[str] = None
+    date_of_birth: Optional[Date] = None
     email: str
-    phone_mobile: PhoneNumber | None = None
-    phone_home: PhoneNumber | None = None
-    address: Address | None = None
-    profile_picture_id: int | None = None
-    profile_picture: StorageObject | None = None
-    formal_picture_id: int | None = None
-    formal_picture: StorageObject | None = None
-    deleted: bool | None = None
-    receive_sms: bool | None = None
-    receive_mailings: bool | None = None
-    locked: bool | None = None
-    show_almanac: bool | None = None
-    show_almanac_addresses: bool | None = None
-    show_almanac_phonenumbers: bool | None = None
-    show_almanac_email: bool | None = None
-    show_almanac_date_of_birth: bool | None = None
-    show_almanac_custom_fields: bool | None = None
-    modified: DateTime | None = None
-    bank_account: BankAccount | None = None
+    phone_mobile: Optional[PhoneNumber] = None
+    phone_home: Optional[PhoneNumber] = None
+    address: Optional[Address] = None
+    profile_picture_id: Optional[int] = None
+    profile_picture: Optional[StorageObject] = None
+    formal_picture_id: Optional[int] = None
+    formal_picture: Optional[StorageObject] = None
+    deleted: Optional[bool] = None
+    receive_sms: Optional[bool] = None
+    receive_mailings: Optional[bool] = None
+    locked: Optional[bool] = None
+    show_almanac: Optional[bool] = None
+    show_almanac_addresses: Optional[bool] = None
+    show_almanac_phonenumbers: Optional[bool] = None
+    show_almanac_email: Optional[bool] = None
+    show_almanac_date_of_birth: Optional[bool] = None
+    show_almanac_custom_fields: Optional[bool] = None
+    modified: Optional[DateTime] = None
+    bank_account: Optional[BankAccount] = None
     custom_field_data: dict
 
     def get_id(self) -> str:

@@ -36,7 +36,7 @@ class User(Entry):
     account_name: str
     first_name: str
     last_name: str
-    password: str | None = None
+    password: Optional[str] = None
 
     @property
     def name(self) -> str:

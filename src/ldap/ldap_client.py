@@ -1,5 +1,6 @@
 import logging
 import ssl
+from typing import Union
 
 import ldap3.core.exceptions as ldap3_exceptions
 from ldap3 import ALL, MODIFY_ADD, MODIFY_DELETE, MODIFY_REPLACE, Connection, Server
@@ -74,10 +75,10 @@ class LdapClient:
         self.get_connection().modify(user.dn, {"userAccountControl": [(MODIFY_REPLACE, [int(uac)])]})
         logging.info(f"Modified user {user.dn} with UAC {uac}")
 
-    def add_to_group(self, member: User | Group, group: Group) -> None:
+    def add_to_group(self, member: Union[User, Group], group: Group) -> None:
         self.get_connection().modify(group.dn, {"member": [(MODIFY_ADD, [member.dn])]})
         logging.info(f"Added {type(member).__name__} {member.get_name()} to {type(group).__name__} {group.get_name()}")
 
-    def remove_from_group(self, member: User | Group, group: Group) -> None:
+    def remove_from_group(self, member: Union[User, Group], group: Group) -> None:
         self.get_connection().modify(group.dn, {"member": [(MODIFY_DELETE, [member.dn])]})
         logging.info(f"Removed {type(member).__name__} {member.get_name()} from {type(group).__name__} {group.get_name()}")

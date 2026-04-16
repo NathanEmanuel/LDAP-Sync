@@ -1,5 +1,6 @@
 from dataclasses import dataclass
 from enum import IntFlag
+from typing import Optional
 
 from ldap.models import Entry
 
@@ -23,7 +24,7 @@ class GroupType(IntFlag):
 class Group(Entry):
 
     name: str
-    description: str | None
+    description: Optional[str]
     
     @property
     def account_name(self) -> str:
