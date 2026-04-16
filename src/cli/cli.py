@@ -67,15 +67,12 @@ class Cli:
         sync.add_argument(
             "--dry-run", "-d", action="store_true", help="Perform a dry run without making changes to the Directory"
         )
-        sync.add_argument("--group-ids", "-g", nargs="+", type=int, help="Sync given groups (default: all)")
         sync.set_defaults(handler=self._congressus_sync)
 
         congressus = subparsers.add_parser("congressus", help="Query Congressus API")
         congressus_sub = congressus.add_subparsers(dest="command", required=True)
 
         active_members = congressus_sub.add_parser("active-members", help="List active members")
-        active_members.add_argument("--json", action="store_true", help="Output JSON")
-        active_members.add_argument("-p", "--page", type=int, default=1, help="Page number for pagination")
         active_members.set_defaults(handler=self._congressus_list_active_members)
 
         ldap = subparsers.add_parser("ldap", help="LDAP operations")
@@ -88,10 +85,7 @@ class Cli:
 
     async def _congressus_sync(self, args: argparse.Namespace) -> int:
         with self._sync:
-            if args.group_ids:
-                await self._sync._sync_groups(args.group_ids, args.dry_run)
-            else:
-                await self._sync.sync_all(args.dry_run)
+            await self._sync.sync_all(args.dry_run)
 
         return 0
 
@@ -105,7 +99,10 @@ class Cli:
         try:
             with self._ldap_client:
                 print("LDAP bind succeeded.")
+            print("LDAP unbind succeeded.")
+
         except LDAPBindError as e:
             print(f"LDAP bind failed: {e}")
             return 1
+
         return 0
