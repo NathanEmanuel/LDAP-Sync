@@ -1,6 +1,8 @@
 import asyncio
 import logging
 
+import ldap3.core.exceptions
+
 from congressus import CongressusClient
 from congressus.models import Group as CongressusGroup
 from congressus.models import Member as CongressusMember
@@ -29,9 +31,9 @@ class LdapSync:
         await self._sync_groups(active_committees, dry_run=dry_run)
 
     async def _sync_groups(self, groups: list[CongressusGroup], dry_run: bool = False) -> None:
-        async with asyncio.TaskGroup() as tg:
-            for group in groups:
-                tg.create_task(self._sync_group(group, dry_run))
+        tasks = [self._sync_group(group, dry_run) for group in groups]
+        if tasks:
+            await asyncio.gather(*tasks)
 
     async def _sync_group(self, congressus_group: CongressusGroup, dry_run: bool = False) -> None:
         if not dry_run:
@@ -44,18 +46,25 @@ class LdapSync:
         logging.info(f"Synced group: {congressus_group.name} (ID: {congressus_group.id})")
 
     async def _sync_group_memberships(self, ldap_group: LdapGroup, dry_run: bool = False) -> None:
-        async with asyncio.TaskGroup() as tg:
-            async for member in self._congressus.list_groups_active_members(int(ldap_group.get_id())):
+        tasks = []
+        async for member in self._congressus.list_groups_active_members(int(ldap_group.get_id())):
 
-                if dry_run:
-                    logging.info(f"Would sync {member.first_name} {member.last_name} to {ldap_group.get_name()}")
-                    continue
+            if dry_run:
+                logging.info(f"Would sync {member.first_name} {member.last_name} to {ldap_group.get_name()}")
+                continue
 
-                tg.create_task(self._sync_member_to_group(member, ldap_group))
+            tasks.append(asyncio.create_task(self._sync_member_to_group(member, ldap_group)))
+
+        if tasks:
+            await asyncio.gather(*tasks)
 
     async def _sync_member_to_group(self, member: CongressusMember, ldap_group: LdapGroup) -> None:
         async with self._get_user_lock(member.id):
-            ldap_user = self.create_account(member)
+            try:
+                ldap_user = self.create_account(member)
+            except ldap3.core.exceptions.LDAPEntryAlreadyExistsResult:
+                ldap_user = self._ldap_model_factory.create_user_from_congressus_member(member)
+
             self._ldap.add_to_group(ldap_user, ldap_group)
 
     def _get_user_lock(self, member_id: int) -> asyncio.Lock:
@@ -65,13 +74,13 @@ class LdapSync:
 
     def create_group(self, congressus_group: CongressusGroup, ignore_existing: bool = False) -> LdapGroup:
         ldap_group = self._ldap_model_factory.create_group_from_congressus_group(congressus_group)
-        self._ldap.create(ldap_group, ignore_existing)
+        self._ldap.create(ldap_group, ignore_existing, autocreate_ou=True)
         return ldap_group
 
     def create_account(self, congressus_member: CongressusMember) -> LdapUser:
         user = self._ldap_model_factory.create_user_from_congressus_member(congressus_member)
         user.set_random_password_if_unset()
-        self._ldap.create(user)
+        self._ldap.create(user, autocreate_ou=True)
         return user
 
     # region Context Manager
