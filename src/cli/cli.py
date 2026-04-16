@@ -9,7 +9,7 @@ from ldap3.core.exceptions import LDAPBindError
 
 from congressus import CongressusClient
 from ldap import LdapClient
-from sync import LdapSync
+from sync import AccountSyncer
 from sync.factories import LdapModelFactory
 
 T = TypeVar("T")
@@ -40,7 +40,7 @@ class Cli:
 
         self._congressus_client = CongressusClient(base_url, api_key, committee_folder_id)
         self._ldap_client = LdapClient(env.ADMIN_DN, env.ADMIN_PW)
-        self._sync = LdapSync(self._congressus_client, self._ldap_client, ldap_model_factory)
+        self._sync = AccountSyncer(self._congressus_client, self._ldap_client, ldap_model_factory)
 
         # Bug in CPython <3.12 on Windows
         if sys.platform == "win32" and sys.version_info < (3, 12):

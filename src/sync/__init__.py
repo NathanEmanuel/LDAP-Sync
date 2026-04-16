@@ -1,1 +1,1 @@
-from .ldap_sync import LdapSync
+from .account_syncer import AccountSyncer

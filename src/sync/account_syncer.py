@@ -12,7 +12,7 @@ from ldap.models import User as LdapUser
 from sync.factories import LdapModelFactory
 
 
-class LdapSync:
+class AccountSyncer:
     """
     Main class for syncing Congressus data to LDAP. This will be responsible for:
     - Fetching data from Congressus API
