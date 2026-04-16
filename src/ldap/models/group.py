@@ -24,6 +24,10 @@ class Group(Entry):
 
     name: str
     description: str | None
+    
+    @property
+    def account_name(self) -> str:
+        return self.name.replace("/", "-")
 
     def get_name(self) -> str:
         return self.name
@@ -32,7 +36,7 @@ class Group(Entry):
         return {
             "cn": self.cn,
             "objectClass": ["top", "group"],
-            "sAMAccountName": self.name,
+            "sAMAccountName": self.account_name,
             "description": self.description or "No description.",  # LDAP doesn't allow empty strings, so we provide a default
             "groupType": int(GroupType.GLOBAL_SECURITY),
         }
