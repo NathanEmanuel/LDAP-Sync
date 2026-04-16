@@ -39,8 +39,7 @@ def get_env() -> Env:
 def main() -> int:
     logging.basicConfig(level=logging.INFO, format="[%(asctime)s] %(levelname)s: %(message)s")
     logging.getLogger("httpx").setLevel(logging.WARNING)
-    Cli(get_env()).run()
-    return 0
+    return Cli(get_env()).run() or 0
 
 
 if __name__ == "__main__":

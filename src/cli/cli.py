@@ -1,6 +1,7 @@
 import argparse
 import asyncio
 import inspect
+import logging
 import sys
 from dataclasses import dataclass
 from typing import Any, TypeVar
@@ -51,14 +52,30 @@ class Cli:
         args = parser.parse_args()
         handler = args.handler
 
-        if inspect.iscoroutinefunction(handler):
-            return asyncio.run(handler(args))
+        try:
+            if inspect.iscoroutinefunction(handler):
+                # asyncio.run() does not work for some reason
+                loop = asyncio.new_event_loop()
+                asyncio.set_event_loop(loop)
 
-        return handler(args)
+                try:
+                    return loop.run_until_complete(handler(args))
+                finally:
+                    loop.close()
+
+            return handler(args)
+
+        except KeyboardInterrupt:
+            print("\nOperation cancelled by user.")
+            raise SystemExit(130)
+
+        except Exception as e:
+            logging.error(f"{e}")
+            raise SystemExit(1)
 
     def _build_parser(self) -> argparse.ArgumentParser:
         parser = argparse.ArgumentParser(
-            prog="ldap-sync",
+            prog="dirtools",
             description="Command-line utilities for Congressus and LDAP sync operations.",
         )
         subparsers = parser.add_subparsers(dest="service", required=True)

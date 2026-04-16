@@ -1,7 +1,9 @@
 .venv/
+.venv-linux/
 .vscode/
 __pycache__/
 .env
 *.egg-info/
 .pytest_cache/
 .responses/
+build/
