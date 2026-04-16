@@ -6,10 +6,12 @@ import ldap3.core.exceptions as ldap3_exceptions
 from ldap3 import ALL, MODIFY_ADD, MODIFY_DELETE, MODIFY_REPLACE, Connection, Server
 from ldap3.core.tls import Tls
 
+from sync.types import DestinationClient, DestinationGroup, DestinationModel, DestinationUser
+
 from .models import Entry, Group, User, UserAccountControl
 
 
-class LdapClient:
+class LdapClient(DestinationClient):
 
     _connection = None
 
@@ -17,12 +19,23 @@ class LdapClient:
         self._admin_dn = admin_dn
         self._admin_pw = admin_pw
 
-    def __enter__(self):
-        self.ldap_bind()
-        return self
+    # region Sync
 
-    def __exit__(self, exc_type, exc_val, exc_tb):
-        self.ldap_unbind()
+    def create_group(self, group: DestinationGroup, ignore_existing: bool = False) -> bool:
+        assert isinstance(group, Group)
+        return self.create(group, ignore_existing, autocreate_ou=True)
+
+    def create_user(self, user: DestinationUser, ignore_existing: bool = False) -> bool:
+        assert isinstance(user, User)
+        return self.create(user, ignore_existing, autocreate_ou=True)
+
+    def add_to_group(self, member: DestinationModel, group: DestinationGroup) -> None:
+        assert isinstance(member, (User, Group))
+        assert isinstance(group, Group)
+        member.create_in(self)
+        self._add_to_group(member, group)
+
+    # endregion
 
     def ldap_bind(self) -> None:
         tls = Tls(validate=ssl.CERT_NONE)  # ignore certificate validation
@@ -97,10 +110,21 @@ class LdapClient:
         self.get_connection().modify(user.dn, {"userAccountControl": [(MODIFY_REPLACE, [int(uac)])]})
         logging.info(f"Modified user {user.dn} with UAC {uac}")
 
-    def add_to_group(self, member: Union[User, Group], group: Group) -> None:
+    def _add_to_group(self, member: Union[User, Group], group: Group) -> None:
         self.get_connection().modify(group.dn, {"member": [(MODIFY_ADD, [member.dn])]})
         logging.info(f"Added {type(member).__name__} {member.get_name()} to {type(group).__name__} {group.get_name()}")
 
     def remove_from_group(self, member: Union[User, Group], group: Group) -> None:
         self.get_connection().modify(group.dn, {"member": [(MODIFY_DELETE, [member.dn])]})
         logging.info(f"Removed {type(member).__name__} {member.get_name()} from {type(group).__name__} {group.get_name()}")
+
+    # region Context manager
+
+    def __enter__(self):
+        self.ldap_bind()
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        self.ldap_unbind()
+
+    # endregion

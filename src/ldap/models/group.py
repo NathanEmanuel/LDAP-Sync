@@ -3,6 +3,7 @@ from enum import IntFlag
 from typing import Optional
 
 from ldap.models import Entry
+from sync.types import Destination, DestinationGroup, DestinationModel
 
 
 class GroupType(IntFlag):
@@ -21,11 +22,11 @@ class GroupType(IntFlag):
 
 
 @dataclass
-class Group(Entry):
+class Group(Entry, DestinationGroup):
 
     name: str
     description: Optional[str]
-    
+
     @property
     def account_name(self) -> str:
         return self.name.replace("/", "-")
@@ -41,3 +42,9 @@ class Group(Entry):
             "description": self.description or "No description.",  # LDAP doesn't allow empty strings, so we provide a default
             "groupType": int(GroupType.GLOBAL_SECURITY),
         }
+
+    def create_in(self, destination: Destination) -> None:
+        destination.create_group(self, ignore_existing=True)
+
+    def add(self, member: DestinationModel, destination: Destination) -> None:
+        destination.add_to_group(member, self)

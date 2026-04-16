@@ -9,8 +9,8 @@ from ldap3.core.exceptions import LDAPBindError
 
 from congressus import CongressusClient
 from ldap import LdapClient
+from model_conversion import CongressusToLdapConverter
 from sync import AccountSyncer
-from sync.factories import LdapModelFactory
 
 T = TypeVar("T")
 
@@ -36,7 +36,7 @@ class Cli:
         base_url = env.CONGRESSUS_API_BASE_URL
         api_key = env.CONGRESSUS_API_KEY
         committee_folder_id = int(env.CONGRESSUS_API_COMMITTEE_FOLDER_ID)
-        ldap_model_factory = LdapModelFactory(base_ou=env.BASE_OU, member_ou=env.MEMBERS_OU)
+        ldap_model_factory = CongressusToLdapConverter(base_ou=env.BASE_OU, member_ou=env.MEMBERS_OU)
 
         self._congressus_client = CongressusClient(base_url, api_key, committee_folder_id)
         self._ldap_client = LdapClient(env.ADMIN_DN, env.ADMIN_PW)
@@ -84,7 +84,7 @@ class Cli:
         return parser
 
     async def _congressus_sync(self, args: argparse.Namespace) -> int:
-        with self._sync:
+        async with self._sync:
             await self._sync.sync_all(args.dry_run)
 
         return 0

@@ -1,12 +1,13 @@
 import asyncio
 import math
-from collections.abc import AsyncIterator, Awaitable
+from collections.abc import AsyncIterator, Awaitable, Sequence
 from datetime import date
 from typing import Generic, Protocol, TypeVar
 
 import httpx
 
 from congressus.models import *
+from sync.types import SourceClient
 
 T = TypeVar("T")
 PAGE_SIZE = 100
@@ -22,7 +23,7 @@ class PaginatedCallable(Protocol[T]):
     def __call__(self, *args, page: int = 1, **kwargs) -> Awaitable[Page[T]]: ...
 
 
-class CongressusClient:
+class CongressusClient(SourceClient):
 
     def __init__(
         self,
@@ -33,7 +34,7 @@ class CongressusClient:
         http_limit_configuration: Optional[httpx.Limits] = None,
     ):
         self._committee_folder_id = committee_folder_id
-        http_timeout_configuration = http_timeout_configuration or httpx.Timeout(10.0, pool=30)
+        http_timeout_configuration = http_timeout_configuration or httpx.Timeout(10.0)
         http_limit_configuration = http_limit_configuration or httpx.Limits(max_connections=50)
 
         self._client = httpx.AsyncClient(
@@ -42,6 +43,18 @@ class CongressusClient:
             timeout=http_timeout_configuration,
             limits=http_limit_configuration,
         )
+
+    # region Sync
+
+    async def get_groups(self) -> Sequence[SourceGroup]:
+        return await self.list_active_committees()
+
+    async def get_group_members(self, group: SourceGroup) -> AsyncIterator[SourceUser]:
+        return self.list_groups_active_members(int(group.get_id()))
+
+    # endregion
+
+    # region Private
 
     async def _get(self, path: str, **params) -> dict:
         resp = await self._client.get(path, params=params)
@@ -62,6 +75,8 @@ class CongressusClient:
         rest = await asyncio.gather(*[method(*args, page=p, **kwargs) for p in range(2, total_pages + 1)])
 
         return first.data + [item for page in rest for item in page.data]
+
+    # endregion
 
     # region Groups and Members
 

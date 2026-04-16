@@ -4,6 +4,7 @@ from enum import IntFlag
 from typing import Optional
 
 from ldap.models import Entry
+from sync.types import Destination, DestinationUser
 
 
 class UserAccountControl(IntFlag):
@@ -32,7 +33,7 @@ class UserAccountControl(IntFlag):
 
 
 @dataclass
-class User(Entry):
+class User(Entry, DestinationUser):
     account_name: str
     first_name: str
     last_name: str
@@ -76,3 +77,6 @@ class User(Entry):
             "unicodePwd": self._encoded_password,
             "userAccountControl": int(UserAccountControl.NORMAL_ACCOUNT),
         }
+
+    def create_in(self, destination: Destination) -> None:
+        destination.create_user(self, ignore_existing=True)

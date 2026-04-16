@@ -5,7 +5,7 @@ from typing import Literal, Optional
 
 from pydantic import BaseModel
 
-from common import SyncableModel
+from sync.types import DestinationModel, ModelConverter, SourceGroup, SourceUser
 
 
 class Expirable(ABC):
@@ -96,7 +96,7 @@ class StorageObject(BaseModel):
     folder: Optional[StorageFolder] = None
 
 
-class GroupMembership(BaseModel, SyncableModel, Expirable):
+class GroupMembership(BaseModel, Expirable):
     id: int
     member_id: int
     start: Date
@@ -110,9 +110,6 @@ class GroupMembership(BaseModel, SyncableModel, Expirable):
     order: Optional[int] = None
     group_id: Optional[int] = None  # not provided if object is nested under Group
 
-    def get_id(self) -> str:
-        return str(self.id)
-
     def is_current(self) -> bool:
         return self.end is None or self.end > Date.today()
 
@@ -121,7 +118,7 @@ class GroupMembershipWithGroup(GroupMembership):
     group: "Group"
 
 
-class Group(BaseModel, SyncableModel, Expirable):
+class Group(BaseModel, SourceGroup, Expirable):
     id: int
     folder_id: Optional[int] = None
     folder: Optional[Folder] = None
@@ -143,6 +140,12 @@ class Group(BaseModel, SyncableModel, Expirable):
 
     def get_id(self) -> str:
         return str(self.id)
+
+    def get_name(self) -> str:
+        return self.name
+
+    def convert_with(self, model_converter: ModelConverter) -> DestinationModel:
+        return model_converter.convert_group(self)
 
     def is_current(self) -> bool:
         return self.end is None or self.end > Date.today()
@@ -188,7 +191,7 @@ class BankAccount(BaseModel):
     sdd_mandates: Optional[list[SddMandate]] = None
 
 
-class Member(BaseModel, SyncableModel, Expirable):
+class Member(BaseModel, SourceUser, Expirable):
     id: int
     username: str
     status: MemberStatus
@@ -234,6 +237,12 @@ class Member(BaseModel, SyncableModel, Expirable):
 
     def get_id(self) -> str:
         return str(self.id)
+
+    def get_name(self) -> str:
+        return f"{self.first_name} {self.primary_last_name}" if self.first_name and self.primary_last_name else self.username
+
+    def convert_with(self, model_converter: ModelConverter) -> DestinationModel:
+        return model_converter.convert_user(self)
 
     def is_current(self) -> bool:
         return not self.deleted and not self.locked and self.status.is_current()
