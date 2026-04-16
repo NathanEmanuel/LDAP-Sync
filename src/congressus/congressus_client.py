@@ -24,13 +24,24 @@ class PaginatedCallable(Protocol[T]):
 
 class CongressusClient:
 
-    def __init__(self, base_url: str, api_key: str, committee_folder_id: int):
+    def __init__(
+        self,
+        base_url: str,
+        api_key: str,
+        committee_folder_id: int,
+        http_timeout_configuration: Optional[httpx.Timeout] = None,
+        http_limit_configuration: Optional[httpx.Limits] = None,
+    ):
+        self._committee_folder_id = committee_folder_id
+        http_timeout_configuration = http_timeout_configuration or httpx.Timeout(10.0, pool=30)
+        http_limit_configuration = http_limit_configuration or httpx.Limits(max_connections=50)
+
         self._client = httpx.AsyncClient(
             base_url=base_url,
             headers={"Authorization": f"Bearer {api_key}"},
-            timeout=10,
+            timeout=http_timeout_configuration,
+            limits=http_limit_configuration,
         )
-        self._committee_folder_id = committee_folder_id
 
     async def _get(self, path: str, **params) -> dict:
         resp = await self._client.get(path, params=params)
