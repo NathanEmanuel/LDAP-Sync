@@ -3,7 +3,7 @@ from enum import IntFlag
 from typing import Optional
 
 from ldap.models import Entry
-from sync.types import Destination, DestinationGroup, DestinationModel
+from sync.types import DestinationClient, DestinationGroup, DestinationModel
 
 
 class GroupType(IntFlag):
@@ -43,8 +43,8 @@ class Group(Entry, DestinationGroup):
             "groupType": int(GroupType.GLOBAL_SECURITY),
         }
 
-    def create_in(self, destination: Destination) -> None:
+    def create_in(self, destination: DestinationClient) -> None:
         destination.create_group(self, ignore_existing=True)
 
-    def add(self, member: DestinationModel, destination: Destination) -> None:
+    def add(self, member: DestinationModel, destination: DestinationClient) -> None:
         destination.add_to_group(member, self)

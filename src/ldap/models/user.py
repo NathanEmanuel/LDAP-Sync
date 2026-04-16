@@ -4,7 +4,7 @@ from enum import IntFlag
 from typing import Optional
 
 from ldap.models import Entry
-from sync.types import Destination, DestinationUser
+from sync.types import DestinationClient, DestinationUser
 
 
 class UserAccountControl(IntFlag):
@@ -78,5 +78,5 @@ class User(Entry, DestinationUser):
             "userAccountControl": int(UserAccountControl.NORMAL_ACCOUNT),
         }
 
-    def create_in(self, destination: Destination) -> None:
+    def create_in(self, destination: DestinationClient) -> None:
         destination.create_user(self, ignore_existing=True)
