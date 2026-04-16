@@ -6,6 +6,7 @@ import ldap3.core.exceptions as ldap3_exceptions
 from ldap3 import ALL, MODIFY_ADD, MODIFY_DELETE, MODIFY_REPLACE, Connection, Server
 from ldap3.core.tls import Tls
 
+from sync.exceptions import AlreadyExistsException, NoSuchGroupMemberException
 from sync.types import DestinationClient, DestinationGroup, DestinationModel, DestinationUser
 
 from .models import Entry, Group, User, UserAccountControl
@@ -21,19 +22,29 @@ class LdapClient(DestinationClient):
 
     # region Sync
 
-    def create_group(self, group: DestinationGroup, ignore_existing: bool = False) -> bool:
+    def create_group(self, group: DestinationGroup) -> None:
         assert isinstance(group, Group)
-        return self.create(group, ignore_existing, autocreate_ou=True)
+        try:
+            self.create(group, autocreate_ou=True)
+        except ldap3_exceptions.LDAPEntryAlreadyExistsResult as e:
+            raise AlreadyExistsException from e
 
-    def create_user(self, user: DestinationUser, ignore_existing: bool = False) -> bool:
+    def create_user(self, user: DestinationUser) -> None:
         assert isinstance(user, User)
-        return self.create(user, ignore_existing, autocreate_ou=True)
+        try:
+            self.create(user, autocreate_ou=True)
+        except ldap3_exceptions.LDAPEntryAlreadyExistsResult as e:
+            raise AlreadyExistsException from e
 
-    def add_to_group(self, member: DestinationModel, group: DestinationGroup, ignore_existing: bool = False) -> None:
+    def add_to_group(self, member: DestinationModel, group: DestinationGroup) -> None:
         assert isinstance(member, (User, Group))
         assert isinstance(group, Group)
-        member.create_in(self, ignore_existing)
-        self._add_to_group(member, group, ignore_existing)
+        try:
+            self._add_to_group(member, group)
+        except ldap3_exceptions.LDAPEntryAlreadyExistsResult as e:
+            raise AlreadyExistsException from e
+        except ldap3_exceptions.LDAPNoSuchObjectResult as e:
+            raise NoSuchGroupMemberException from e
 
     # endregion
 
@@ -48,6 +59,7 @@ class LdapClient(DestinationClient):
             logging.debug("Bound to Directory Server.")
         except ldap3_exceptions.LDAPBindError as e:
             logging.error(f"Failed to bind to Directory Server: {e}")
+            raise
 
     def ldap_unbind(self) -> None:
         if self._connection:
@@ -63,19 +75,12 @@ class LdapClient(DestinationClient):
 
         return self._connection
 
-    def create(self, entry: Entry, ignore_existing: bool = False, autocreate_ou: bool = False) -> bool:
-        try:
-            if autocreate_ou:
-                self._create_ou(entry.ou, ignore_existing=True)
+    def create(self, entry: Entry, autocreate_ou: bool = False) -> None:
+        if autocreate_ou:
+            self._create_ou(entry.ou, ignore_existing=True)
 
-            self.get_connection().add(entry.dn, attributes=entry.serialize_for_creation())
-            logging.info(f"Created {type(entry).__name__} {entry.get_name()}")
-            return True
-        except ldap3_exceptions.LDAPEntryAlreadyExistsResult:
-            if ignore_existing:
-                logging.debug(f"{type(entry).__name__} {entry.get_name()} already exists. Skipping creation.")
-                return False
-            raise
+        self.get_connection().add(entry.dn, attributes=entry.serialize_for_creation())
+        logging.info(f"Created {type(entry).__name__} {entry.get_name()}")
 
     def _create_ou(self, ou: str, ignore_existing: bool = False) -> bool:
         ou_components = ou.split(",")
@@ -110,17 +115,9 @@ class LdapClient(DestinationClient):
         self.get_connection().modify(user.dn, {"userAccountControl": [(MODIFY_REPLACE, [int(uac)])]})
         logging.info(f"Modified user {user.dn} with UAC {uac}")
 
-    def _add_to_group(self, member: Union[User, Group], group: Group, ignore_existing: bool = False) -> bool:
-        try:
-            self.get_connection().modify(group.dn, {"member": [(MODIFY_ADD, [member.dn])]})
-            logging.info(f"Added {type(member).__name__} {member.get_name()} to {type(group).__name__} {group.get_name()}")
-            return True
-        except ldap3_exceptions.LDAPEntryAlreadyExistsResult:
-            if ignore_existing:
-                logging.debug(f"{type(member).__name__} {member.get_name()} is already a member of {type(group).__name__} {group.get_name()}. Skipping.")
-                return False
-            raise
-
+    def _add_to_group(self, member: Union[User, Group], group: Group) -> None:
+        self.get_connection().modify(group.dn, {"member": [(MODIFY_ADD, [member.dn])]})
+        logging.info(f"Added {type(member).__name__} {member.get_name()} to {type(group).__name__} {group.get_name()}")
 
     def remove_from_group(self, member: Union[User, Group], group: Group) -> None:
         self.get_connection().modify(group.dn, {"member": [(MODIFY_DELETE, [member.dn])]})

@@ -1,7 +1,15 @@
 import asyncio
 import logging
 
-from sync.types import DestinationClient, DestinationGroup, DestinationModel, ModelConverter, SourceClient, SourceGroup
+from sync.exceptions import AlreadyExistsException, NoSuchGroupMemberException
+from sync.types import (
+    DestinationClient,
+    DestinationGroup,
+    DestinationModel,
+    ModelConverter,
+    SourceClient,
+    SourceGroup,
+)
 
 
 class AccountSyncer:
@@ -27,11 +35,14 @@ class AccountSyncer:
         destination_group = self._model_converter.convert_group(source_group)
 
         if not dry_run:
-            self._destination.create_group(destination_group, ignore_existing=True)
+            try:
+                self._destination.create_group(destination_group)
+            except AlreadyExistsException:
+                logging.debug(f"Group {destination_group.get_name()} already exists. Skipping creation.")
 
         await self._sync_group_memberships(source_group, dry_run=dry_run)
 
-        logging.info(f"Synced group: {destination_group.get_name()} (ID: {destination_group.get_id()})")
+        logging.debug(f"Synced group: {destination_group.get_name()} (ID: {destination_group.get_id()})")
 
     async def _sync_group_memberships(self, source_group: SourceGroup, dry_run: bool = False) -> None:
         destination_group = self._model_converter.convert_group(source_group)
@@ -50,7 +61,17 @@ class AccountSyncer:
 
     async def _sync_member_to_group(self, member: DestinationModel, group: DestinationGroup) -> None:
         async with self._get_destination_lock(int(member.get_id())):
-            group.add(member, self._destination, ignore_existing=True)
+            try:
+                group.add(member, self._destination)
+            except NoSuchGroupMemberException:
+                logging.debug(f"{member.get_name()} does not exist. Creating account and adding to {group.get_name()}...")
+                await self._create_group_member(member)
+                group.add(member, self._destination)
+            except AlreadyExistsException:
+                logging.debug(f"{member.get_name()} is already a member of {group.get_name()}. Skipping.")
+
+    async def _create_group_member(self, member: DestinationModel) -> None:
+        member.create_in(self._destination)
 
     def _get_destination_lock(self, id: int) -> asyncio.Lock:
         if id not in self._user_locks:

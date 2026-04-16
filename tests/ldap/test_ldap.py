@@ -13,7 +13,7 @@ from ldap3.core.exceptions import (
 
 from directories.ldap import LdapClient
 from directories.ldap.models import Group, OrganizationalUnit, User
-from sync.exceptions import AlreadyExistsException
+from sync.exceptions import AlreadyExistsException, NoSuchGroupMemberException
 
 load_dotenv()
 
@@ -164,3 +164,14 @@ def test_add_to_remove_from_group(ldap: LdapClient, member: User, committee: Gro
     ldap.remove_from_group(member, committee)
     with pytest.raises(LDAPUnwillingToPerformResult):
         ldap.remove_from_group(member, committee)
+        
+    fake_member = User(
+        cn="9999",
+        account_name="s9999999",
+        first_name="Fake",
+        last_name="User",
+        password="P@ssword2026!",
+        ou=member.ou,
+    )
+    with pytest.raises(NoSuchGroupMemberException):
+        ldap.add_to_group(fake_member, committee)
