@@ -7,9 +7,9 @@ from typing import Any, TypeVar
 
 from ldap3.core.exceptions import LDAPBindError
 
-from congressus import CongressusClient
-from ldap import LdapClient
-from model_conversion import CongressusToLdapConverter
+from directories.congressus import CongressusClient
+from directories.ldap import LdapClient
+from directory_converters import CongressusToLdapConverter
 from sync import AccountSyncer
 
 T = TypeVar("T")

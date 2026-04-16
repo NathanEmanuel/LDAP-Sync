@@ -2,7 +2,7 @@ from dataclasses import dataclass
 from enum import IntFlag
 from typing import Optional
 
-from ldap.models import Entry
+from directories.ldap.models import Entry
 from sync.types import DestinationClient, DestinationGroup, DestinationModel
 
 

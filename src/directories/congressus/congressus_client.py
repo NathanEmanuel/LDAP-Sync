@@ -6,7 +6,7 @@ from typing import Generic, Protocol, TypeVar
 
 import httpx
 
-from congressus.models import *
+from directories.congressus.models import *
 from sync.types import SourceClient
 
 T = TypeVar("T")

@@ -13,8 +13,10 @@ class AccountSyncer:
         self._user_locks: dict[int, asyncio.Lock] = {}
 
     async def sync_all(self, dry_run: bool = False) -> None:
+        logging.info("Starting a full sync...")
         groups = await self._source.get_groups()
         await self._sync_groups(list(groups), dry_run=dry_run)
+        logging.info("Full sync completed.")
 
     async def _sync_groups(self, groups: list[SourceGroup], dry_run: bool = False) -> None:
         tasks = [self._sync_group(group, dry_run) for group in groups]

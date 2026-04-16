@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 
-from ldap.models import Entry
+from directories.ldap.models import Entry
 
 
 @dataclass

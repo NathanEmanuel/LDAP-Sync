@@ -1,6 +1,6 @@
 import pytest
 
-from congressus.models import Group, GroupMembershipWithGroup
+from directories.congressus.models import Group, GroupMembershipWithGroup
 
 
 @pytest.fixture

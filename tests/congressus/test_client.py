@@ -5,8 +5,8 @@ import httpx
 import pytest
 import respx
 
-from congressus import CongressusClient
-from congressus.models import Group, GroupMembership
+from directories.congressus import CongressusClient
+from directories.congressus.models import Group, GroupMembership
 
 BASE_URL = "https://api.congressus.nl/v30"
 FOLDER_ID = 123
@@ -60,7 +60,9 @@ async def test_list_active_standing_committees(client: CongressusClient, sample_
     respx.get(f"{BASE_URL}/groups", params={"folder_id": FOLDER_ID, "page": 1}).mock(
         return_value=httpx.Response(200, json=sample_active_standing_committee_data)
     )
-    respx.get(f"{BASE_URL}/groups", params={"folder_id": FOLDER_ID, "page": 2}).mock(return_value=httpx.Response(200, json={"data": [], "total": 0}))
+    respx.get(f"{BASE_URL}/groups", params={"folder_id": FOLDER_ID, "page": 2}).mock(
+        return_value=httpx.Response(200, json={"data": [], "total": 0})
+    )
 
     result = await client.list_active_standing_committees()
 

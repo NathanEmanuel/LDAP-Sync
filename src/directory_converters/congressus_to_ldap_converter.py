@@ -1,7 +1,7 @@
-from congressus import Group as CongressusGroup
-from congressus import Member as CongressusMember
-from ldap.models import Group as LdapGroup
-from ldap.models import User
+from directories.congressus import Group as CongressusGroup
+from directories.congressus import Member as CongressusMember
+from directories.ldap.models import Group as LdapGroup
+from directories.ldap.models import User
 from sync.types import DestinationGroup, DestinationUser, ModelConverter, SourceGroup, SourceUser
 
 

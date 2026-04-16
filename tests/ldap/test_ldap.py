@@ -3,12 +3,10 @@ from collections.abc import Generator
 
 import pytest
 from dotenv import load_dotenv
-
-from ldap import LdapClient
-from ldap.models.group import Group
-from ldap.models.organizational_unit import OrganizationalUnit
-from ldap.models.user import User
 from ldap3.core.exceptions import LDAPBindError
+
+from directories.ldap import LdapClient
+from directories.ldap.models import Group, OrganizationalUnit, User
 
 load_dotenv()
 
