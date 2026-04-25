@@ -1,4 +1,8 @@
+from __future__ import annotations
+
 from dataclasses import dataclass
+
+from ldap3 import Entry as RawEntry
 
 from directories.ldap.models import Entry
 
@@ -23,3 +27,7 @@ class OrganizationalUnit(Entry):
             "ou": self.cn,
             "objectClass": ["top", "organizationalUnit"],
         }
+
+    @classmethod
+    def from_raw_entry(cls, ou: str, entry: RawEntry) -> OrganizationalUnit:
+        raise NotImplementedError  # TODO

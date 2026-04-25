@@ -1,7 +1,11 @@
+from __future__ import annotations
+
 import secrets
 from dataclasses import dataclass
 from enum import IntFlag
-from typing import Optional
+from typing import ClassVar, Optional
+
+from ldap3 import Entry as RawEntry
 
 from directories.ldap.models import Entry
 from sync.types import DestinationClient, DestinationUser
@@ -34,6 +38,8 @@ class UserAccountControl(IntFlag):
 
 @dataclass
 class User(Entry, DestinationUser):
+
+    object_class: ClassVar[str] = "user"
     account_name: str
     first_name: str
     last_name: str
@@ -77,6 +83,10 @@ class User(Entry, DestinationUser):
             "unicodePwd": self._encoded_password,
             "userAccountControl": int(UserAccountControl.NORMAL_ACCOUNT),
         }
+
+    @classmethod
+    def from_raw_entry(cls, ou: str, entry: RawEntry) -> User:
+        return User(entry.cn.value, ou, entry.sAMAccountName.value, entry.givenName.value, entry.sn.value, None)
 
     def create_in(self, destination: DestinationClient) -> None:
         destination.create_user(self)

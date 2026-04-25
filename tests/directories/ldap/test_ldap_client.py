@@ -103,12 +103,20 @@ def test_create_delete_user(ldap: LdapClient, members_ou: OrganizationalUnit) ->
         ou=members_ou.dn,
     )
     
+    try:
+        ldap.delete(member)
+    except LDAPNoSuchObjectResult:
+        pass
+    
     with pytest.raises(LDAPNoSuchObjectResult):
         ldap.delete(member)
 
     ldap.create(member)
     with pytest.raises(LDAPEntryAlreadyExistsResult):
         ldap.create(member)
+        
+    member = ldap.fetch(member)
+    assert isinstance(member, User)
 
     ldap.delete(member)
     with pytest.raises(LDAPNoSuchObjectResult):
@@ -132,23 +140,31 @@ def test_enable_user(ldap: LdapClient, member: User) -> None:
 
 @pytest.mark.integration
 def test_create_delete_group(ldap: LdapClient, committees_ou: OrganizationalUnit) -> None:
-    committee = Group(
+    group = Group(
         cn="12345",
         ou=committees_ou.dn,
-        name="Test Committee",
-        description="This is a test committee.",
+        name="Test Group",
+        description="This is a test group.",
     )
+    
+    try:
+        ldap.delete(group)
+    except LDAPNoSuchObjectResult:
+        pass
 
     with pytest.raises(LDAPNoSuchObjectResult):
-        ldap.delete(committee)
+        ldap.delete(group)
 
-    ldap.create(committee)
+    ldap.create(group)
     with pytest.raises(LDAPEntryAlreadyExistsResult):
-        ldap.create(committee)
+        ldap.create(group)
+        
+    group = ldap.fetch(group)
+    assert isinstance(group, Group)
 
-    ldap.delete(committee)
+    ldap.delete(group)
     with pytest.raises(LDAPNoSuchObjectResult):
-        ldap.delete(committee)
+        ldap.delete(group)
 
 
 @pytest.mark.integration

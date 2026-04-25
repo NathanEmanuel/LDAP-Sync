@@ -1,6 +1,10 @@
+from __future__ import annotations
+
 from dataclasses import dataclass
 from enum import IntFlag
-from typing import Optional
+from typing import ClassVar, Optional
+
+from ldap3 import Entry as RawEntry
 
 from directories.ldap.models import Entry
 from sync.types import DestinationClient, DestinationGroup, DestinationModel
@@ -24,6 +28,7 @@ class GroupType(IntFlag):
 @dataclass
 class Group(Entry, DestinationGroup):
 
+    object_class: ClassVar[str] = "group"
     name: str
     description: Optional[str]
 
@@ -48,3 +53,7 @@ class Group(Entry, DestinationGroup):
 
     def add(self, member: DestinationModel, destination: DestinationClient) -> None:
         destination.add_to_group(member, self)
+
+    @classmethod
+    def from_raw_entry(cls, ou: str, entry: RawEntry) -> Group:
+        return Group(entry.cn.value, ou, entry.sAMAccountName.value, entry.description.value)
