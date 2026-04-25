@@ -5,15 +5,16 @@ from typing import TypeVar, Union
 import ldap3.core.exceptions as ldap3_exceptions
 from ldap3 import ALL, MODIFY_ADD, MODIFY_DELETE, MODIFY_REPLACE, Connection, ObjectDef, Reader, Server, Tls
 
+from directories.active_directory.enums import UserAccountControl
+from directories.active_directory.schemas import Entry, Group, ADUser
 from sync.exceptions import AlreadyExistsException, NoSuchGroupMemberException
 from sync.types import DestinationClient, DestinationGroup, DestinationModel, DestinationUser
 
-from .models import Entry, Group, User, UserAccountControl
 
 DESTINATION_MODEL_TYPE = TypeVar("DESTINATION_MODEL_TYPE", bound=DestinationModel)
 
 
-class LdapClient(DestinationClient):
+class ActiveDirectoryClient(DestinationClient):
 
     _connection = None
 
@@ -43,14 +44,14 @@ class LdapClient(DestinationClient):
             raise AlreadyExistsException from e
 
     def create_user(self, user: DestinationUser) -> None:
-        assert isinstance(user, User)
+        assert isinstance(user, ADUser)
         try:
             self.create(user, autocreate_ou=True)
         except ldap3_exceptions.LDAPEntryAlreadyExistsResult as e:
             raise AlreadyExistsException from e
 
     def add_to_group(self, member: DestinationModel, group: DestinationGroup) -> None:
-        assert isinstance(member, (User, Group))
+        assert isinstance(member, (ADUser, Group))
         assert isinstance(group, Group)
         try:
             self._add_to_group(member, group)
@@ -61,7 +62,7 @@ class LdapClient(DestinationClient):
 
     # endregion
 
-    def ldap_bind(self) -> None:
+    def bind(self) -> None:
         tls = Tls(validate=ssl.CERT_NONE)  # ignore certificate validation
         server = Server("127.0.0.1", port=636, use_ssl=True, tls=tls, get_info=ALL)
 
@@ -74,7 +75,7 @@ class LdapClient(DestinationClient):
             logging.error(f"Failed to bind to Directory Server: {e}")
             raise
 
-    def ldap_unbind(self) -> None:
+    def unbind(self) -> None:
         if self._connection:
             self._connection.unbind()
             self._connection = None
@@ -83,7 +84,7 @@ class LdapClient(DestinationClient):
     def get_connection(self) -> Connection:
         if not self._connection:
             raise ldap3_exceptions.LDAPBindError(
-                "Not connected to Directory Server. Use context manager or call ldap_bind() first."
+                "Not connected to Directory Server. Use context manager or call bind() first."
             )
 
         return self._connection
@@ -118,31 +119,31 @@ class LdapClient(DestinationClient):
         self.get_connection().delete(entry.dn)
         logging.info(f"Deleted {type(entry).__name__} {entry.get_name()}")
 
-    def enable_user(self, user: User) -> None:
+    def enable_user(self, user: ADUser) -> None:
         self.modify_user_uac(user, UserAccountControl.NORMAL_ACCOUNT)
 
-    def disable_user(self, user: User) -> None:
+    def disable_user(self, user: ADUser) -> None:
         self.modify_user_uac(user, (UserAccountControl.NORMAL_ACCOUNT | UserAccountControl.ACCOUNTDISABLE))
 
-    def modify_user_uac(self, user: User, uac: UserAccountControl):
+    def modify_user_uac(self, user: ADUser, uac: UserAccountControl):
         self.get_connection().modify(user.dn, {"userAccountControl": [(MODIFY_REPLACE, [int(uac)])]})
         logging.info(f"Modified user {user.dn} with UAC {uac}")
 
-    def _add_to_group(self, member: Union[User, Group], group: Group) -> None:
+    def _add_to_group(self, member: Union[ADUser, Group], group: Group) -> None:
         self.get_connection().modify(group.dn, {"member": [(MODIFY_ADD, [member.dn])]})
         logging.info(f"Added {type(member).__name__} {member.get_name()} to {type(group).__name__} {group.get_name()}")
 
-    def remove_from_group(self, member: Union[User, Group], group: Group) -> None:
+    def remove_from_group(self, member: Union[ADUser, Group], group: Group) -> None:
         self.get_connection().modify(group.dn, {"member": [(MODIFY_DELETE, [member.dn])]})
         logging.info(f"Removed {type(member).__name__} {member.get_name()} from {type(group).__name__} {group.get_name()}")
 
     # region Context manager
 
     def __enter__(self):
-        self.ldap_bind()
+        self.bind()
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):
-        self.ldap_unbind()
+        self.unbind()
 
     # endregion

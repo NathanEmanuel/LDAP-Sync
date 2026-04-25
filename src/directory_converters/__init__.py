@@ -1,1 +1,1 @@
-from .congressus_to_ldap_converter import CongressusToLdapConverter
+from .congressus_to_active_directory_converter import CongressusToActiveDirectoryConverter

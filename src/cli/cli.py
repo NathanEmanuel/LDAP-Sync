@@ -9,8 +9,8 @@ from typing import Any, TypeVar
 from ldap3.core.exceptions import LDAPBindError
 
 from directories.congressus import CongressusClient
-from directories.ldap import LdapClient
-from directory_converters import CongressusToLdapConverter
+from directories.active_directory import ActiveDirectoryClient
+from directory_converters import CongressusToActiveDirectoryConverter
 from sync import AccountSyncer
 
 T = TypeVar("T")
@@ -29,7 +29,7 @@ class Env:
 
 class Cli:
     """
-    Command-line interface for interacting with Congressus API and LDAP sync operations.
+    Command-line interface for interacting with Congressus API and Active Directory sync operations.
     """
 
     def __init__(self, env: Env):
@@ -37,11 +37,11 @@ class Cli:
         base_url = env.CONGRESSUS_API_BASE_URL
         api_key = env.CONGRESSUS_API_KEY
         committee_folder_id = int(env.CONGRESSUS_API_COMMITTEE_FOLDER_ID)
-        ldap_model_factory = CongressusToLdapConverter(base_ou=env.BASE_OU, member_ou=env.MEMBERS_OU)
+        model_factory = CongressusToActiveDirectoryConverter(base_ou=env.BASE_OU, member_ou=env.MEMBERS_OU)
 
         self._congressus_client = CongressusClient(base_url, api_key, committee_folder_id)
-        self._ldap_client = LdapClient(env.ADMIN_DN, env.ADMIN_PW)
-        self._sync = AccountSyncer(self._congressus_client, self._ldap_client, ldap_model_factory)
+        self._active_directory_client = ActiveDirectoryClient(env.ADMIN_DN, env.ADMIN_PW)
+        self._sync = AccountSyncer(self._congressus_client, self._active_directory_client, model_factory)
 
         # Bug in CPython <3.12 on Windows
         if sys.platform == "win32" and sys.version_info < (3, 12):
@@ -76,7 +76,7 @@ class Cli:
     def _build_parser(self) -> argparse.ArgumentParser:
         parser = argparse.ArgumentParser(
             prog="dirtools",
-            description="Command-line utilities for Congressus and LDAP sync operations.",
+            description="Command-line utilities for Congressus and Active Directory sync operations.",
         )
         subparsers = parser.add_subparsers(dest="service", required=True)
 
@@ -92,11 +92,11 @@ class Cli:
         active_members = congressus_sub.add_parser("active-members", help="List active members")
         active_members.set_defaults(handler=self._congressus_list_active_members)
 
-        ldap = subparsers.add_parser("ldap", help="LDAP operations")
-        ldap_sub = ldap.add_subparsers(dest="command", required=True)
+        active_directory = subparsers.add_parser("ad", help="Active Directory operations")
+        active_directory_sub = active_directory.add_subparsers(dest="command", required=True)
 
-        check_bind = ldap_sub.add_parser("check-bind", help="Test LDAP bind using ADMIN_DN and ADMIN_PW")
-        check_bind.set_defaults(handler=self._ldap_check_bind)
+        check_bind = active_directory_sub.add_parser("check-bind", help="Test Active Directory bind using ADMIN_DN and ADMIN_PW")
+        check_bind.set_defaults(handler=self._ad_check_bind)
 
         return parser
 
@@ -112,14 +112,14 @@ class Cli:
 
         return 0
 
-    async def _ldap_check_bind(self, args: argparse.Namespace) -> int:
+    async def _ad_check_bind(self, args: argparse.Namespace) -> int:
         try:
-            with self._ldap_client:
-                print("LDAP bind succeeded.")
-            print("LDAP unbind succeeded.")
+            with self._active_directory_client:
+                print("Bind succeeded.")
+            print("Unbind succeeded.")
 
         except LDAPBindError as e:
-            print(f"LDAP bind failed: {e}")
+            print(f"Bind failed: {e}")
             return 1
 
         return 0

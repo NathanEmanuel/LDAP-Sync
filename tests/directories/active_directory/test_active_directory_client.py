@@ -11,50 +11,50 @@ from ldap3.core.exceptions import (
     LDAPUnwillingToPerformResult,
 )
 
-from directories.ldap import LdapClient
-from directories.ldap.models import Group, OrganizationalUnit, User
+from directories.active_directory import ActiveDirectoryClient
+from directories.active_directory.schemas import Group, OrganizationalUnit, ADUser
 from sync.exceptions import AlreadyExistsException, NoSuchGroupMemberException
 
 load_dotenv()
 
 
 @pytest.fixture
-def ldap() -> Generator[LdapClient, None, None]:
-    with LdapClient(os.environ["ADMIN_DN"], os.environ["ADMIN_PW"]) as ldap:
-        yield ldap
+def ad() -> Generator[ActiveDirectoryClient, None, None]:
+    with ActiveDirectoryClient(os.environ["ADMIN_DN"], os.environ["ADMIN_PW"]) as ad:
+        yield ad
 
 
 @pytest.fixture
-def committees_ou(ldap: LdapClient) -> Generator[OrganizationalUnit, None, None]:
+def committees_ou(ad: ActiveDirectoryClient) -> Generator[OrganizationalUnit, None, None]:
     ou = OrganizationalUnit(cn="Committees", ou=os.environ["BASE_OU"])
 
     try:
-        ldap.create(ou, autocreate_ou=True)
+        ad.create(ou, autocreate_ou=True)
     except LDAPEntryAlreadyExistsResult:
         pass
 
     yield ou
 
-    ldap.delete(ou)
+    ad.delete(ou)
 
 
 @pytest.fixture
-def members_ou(ldap: LdapClient) -> Generator[OrganizationalUnit, None, None]:
+def members_ou(ad: ActiveDirectoryClient) -> Generator[OrganizationalUnit, None, None]:
     ou = OrganizationalUnit(cn="Members", ou=os.environ["BASE_OU"])
 
     try:
-        ldap.create(ou, autocreate_ou=True)
+        ad.create(ou, autocreate_ou=True)
     except LDAPEntryAlreadyExistsResult:
         pass
 
     yield ou
 
-    ldap.delete(ou)
+    ad.delete(ou)
 
 
 @pytest.fixture
-def member(ldap: LdapClient, members_ou: OrganizationalUnit) -> Generator[User, None, None]:
-    member = User(
+def member(ad: ActiveDirectoryClient, members_ou: OrganizationalUnit) -> Generator[ADUser, None, None]:
+    member = ADUser(
         cn="5678",
         account_name="s1234567",
         first_name="Nathan",
@@ -62,39 +62,39 @@ def member(ldap: LdapClient, members_ou: OrganizationalUnit) -> Generator[User, 
         password="P@ssword2026!",
         ou=members_ou.dn,
     )
-    ldap.create(member)
+    ad.create(member)
     yield member
-    ldap.delete(member)
+    ad.delete(member)
 
 
 @pytest.fixture
-def committee(ldap: LdapClient, committees_ou: OrganizationalUnit) -> Generator[Group, None, None]:
+def committee(ad: ActiveDirectoryClient, committees_ou: OrganizationalUnit) -> Generator[Group, None, None]:
     committee = Group(
         cn="12345",
         ou=committees_ou.dn,
         name="Test Committee",
         description="This is a test committee.",
     )
-    ldap.create(committee)
+    ad.create(committee)
     yield committee
-    ldap.delete(committee)
+    ad.delete(committee)
 
 
 @pytest.mark.integration
-def test_ldap_connection(ldap: LdapClient) -> None:
-    assert ldap.get_connection().bound
+def test_connection(ad: ActiveDirectoryClient) -> None:
+    assert ad.get_connection().bound
 
 
 @pytest.mark.integration
-def test_ldap_invalid_credentials() -> None:
+def test_invalid_credentials() -> None:
     with pytest.raises(LDAPInvalidCredentialsResult):
-        with LdapClient("invalid_dn", "invalid_pw") as ldap:
+        with ActiveDirectoryClient("invalid_dn", "invalid_pw") as ad:
             pass
 
 
 @pytest.mark.integration
-def test_create_delete_user(ldap: LdapClient, members_ou: OrganizationalUnit) -> None:
-    member = User(
+def test_create_delete_user(ad: ActiveDirectoryClient, members_ou: OrganizationalUnit) -> None:
+    member = ADUser(
         cn="5678",
         account_name="s1234567",
         first_name="Nathan",
@@ -104,45 +104,45 @@ def test_create_delete_user(ldap: LdapClient, members_ou: OrganizationalUnit) ->
     )
 
     try:
-        ldap.delete(member)
+        ad.delete(member)
     except LDAPNoSuchObjectResult:
         pass
 
     with pytest.raises(LDAPNoSuchObjectResult):
-        ldap.delete(member)
+        ad.delete(member)
 
-    ldap.create(member)
+    ad.create(member)
     with pytest.raises(LDAPEntryAlreadyExistsResult):
-        ldap.create(member)
+        ad.create(member)
 
-    assert ldap.is_synced(member)
+    assert ad.is_synced(member)
 
     member.first_name = "First Name"
     member.last_name = "Last Name"
-    assert not ldap.is_synced(member)
+    assert not ad.is_synced(member)
 
-    ldap.delete(member)
+    ad.delete(member)
     with pytest.raises(LDAPNoSuchObjectResult):
-        ldap.delete(member)
+        ad.delete(member)
 
 
 @pytest.mark.integration
-def test_disable_user(ldap: LdapClient, member: User) -> None:
-    ldap.disable_user(member)
-    ldap.disable_user(member)
+def test_disable_user(ad: ActiveDirectoryClient, member: ADUser) -> None:
+    ad.disable_user(member)
+    ad.disable_user(member)
 
 
 @pytest.mark.integration
-def test_enable_user(ldap: LdapClient, member: User) -> None:
-    ldap.disable_user(member)
-    ldap.enable_user(member)
-    ldap.enable_user(member)
-    ldap.disable_user(member)
-    ldap.enable_user(member)
+def test_enable_user(ad: ActiveDirectoryClient, member: ADUser) -> None:
+    ad.disable_user(member)
+    ad.enable_user(member)
+    ad.enable_user(member)
+    ad.disable_user(member)
+    ad.enable_user(member)
 
 
 @pytest.mark.integration
-def test_create_delete_group(ldap: LdapClient, committees_ou: OrganizationalUnit) -> None:
+def test_create_delete_group(ad: ActiveDirectoryClient, committees_ou: OrganizationalUnit) -> None:
     group = Group(
         cn="12345",
         ou=committees_ou.dn,
@@ -151,42 +151,42 @@ def test_create_delete_group(ldap: LdapClient, committees_ou: OrganizationalUnit
     )
 
     try:
-        ldap.delete(group)
+        ad.delete(group)
     except LDAPNoSuchObjectResult:
         pass
 
     with pytest.raises(LDAPNoSuchObjectResult):
-        ldap.delete(group)
+        ad.delete(group)
 
-    ldap.create(group)
+    ad.create(group)
     with pytest.raises(LDAPEntryAlreadyExistsResult):
-        ldap.create(group)
+        ad.create(group)
 
-    assert ldap.is_synced(group)
+    assert ad.is_synced(group)
 
     group.name = "Updated Test Group"
-    assert not ldap.is_synced(group)
+    assert not ad.is_synced(group)
 
-    ldap.delete(group)
+    ad.delete(group)
     with pytest.raises(LDAPNoSuchObjectResult):
-        ldap.delete(group)
+        ad.delete(group)
 
 
 @pytest.mark.integration
-def test_add_to_remove_from_group(ldap: LdapClient, member: User, committee: Group) -> None:
+def test_add_to_remove_from_group(ad: ActiveDirectoryClient, member: ADUser, committee: Group) -> None:
 
     with pytest.raises(LDAPNoSuchAttributeResult):
-        ldap.remove_from_group(member, committee)
+        ad.remove_from_group(member, committee)
 
-    ldap.add_to_group(member, committee)
+    ad.add_to_group(member, committee)
     with pytest.raises(AlreadyExistsException):
-        ldap.add_to_group(member, committee)
+        ad.add_to_group(member, committee)
 
-    ldap.remove_from_group(member, committee)
+    ad.remove_from_group(member, committee)
     with pytest.raises(LDAPUnwillingToPerformResult):
-        ldap.remove_from_group(member, committee)
+        ad.remove_from_group(member, committee)
 
-    fake_member = User(
+    fake_member = ADUser(
         cn="9999",
         account_name="s9999999",
         first_name="Fake",
@@ -195,4 +195,4 @@ def test_add_to_remove_from_group(ldap: LdapClient, member: User, committee: Gro
         ou=member.ou,
     )
     with pytest.raises(NoSuchGroupMemberException):
-        ldap.add_to_group(fake_member, committee)
+        ad.add_to_group(fake_member, committee)
