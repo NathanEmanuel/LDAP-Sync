@@ -3,15 +3,13 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from collections.abc import AsyncIterator, Sequence
 from types import TracebackType
-from typing import Optional, TypeVar
-
-DESTINATION_MODEL_TYPE = TypeVar("DESTINATION_MODEL_TYPE", bound="DestinationModel")
+from typing import Optional
 
 
 class DestinationClient(ABC):
 
     @abstractmethod
-    def fetch(self, entry: DESTINATION_MODEL_TYPE) -> DESTINATION_MODEL_TYPE: ...
+    def is_synced(self, entry: DestinationModel) -> bool: ...
 
     @abstractmethod
     def create_group(self, group: DestinationGroup) -> None: ...

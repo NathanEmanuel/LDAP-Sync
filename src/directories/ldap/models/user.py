@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import secrets
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from enum import IntFlag
 from typing import ClassVar, Optional
 
@@ -43,7 +43,7 @@ class User(Entry, DestinationUser):
     account_name: str
     first_name: str
     last_name: str
-    password: Optional[str] = None
+    password: Optional[str] = field(compare=False, default=None)
 
     @property
     def name(self) -> str:

@@ -1,14 +1,16 @@
 import logging
 import ssl
-from typing import Union
+from typing import TypeVar, Union
 
 import ldap3.core.exceptions as ldap3_exceptions
 from ldap3 import ALL, MODIFY_ADD, MODIFY_DELETE, MODIFY_REPLACE, Connection, ObjectDef, Reader, Server, Tls
 
 from sync.exceptions import AlreadyExistsException, NoSuchGroupMemberException
-from sync.types import DESTINATION_MODEL_TYPE, DestinationClient, DestinationGroup, DestinationModel, DestinationUser
+from sync.types import DestinationClient, DestinationGroup, DestinationModel, DestinationUser
 
 from .models import Entry, Group, User, UserAccountControl
+
+DESTINATION_MODEL_TYPE = TypeVar("DESTINATION_MODEL_TYPE", bound=DestinationModel)
 
 
 class LdapClient(DestinationClient):
@@ -21,7 +23,11 @@ class LdapClient(DestinationClient):
 
     # region Sync
 
-    def fetch(self, entry: DESTINATION_MODEL_TYPE) -> DESTINATION_MODEL_TYPE:
+    def is_synced(self, entry: DestinationModel) -> bool:
+        local_entry = self._fetch(entry)
+        return local_entry == entry
+
+    def _fetch(self, entry: DESTINATION_MODEL_TYPE) -> DESTINATION_MODEL_TYPE:
         assert isinstance(entry, Entry)
         obj = ObjectDef(entry.object_class, self.get_connection())
         obj += "sAMAccountName"

@@ -102,21 +102,24 @@ def test_create_delete_user(ldap: LdapClient, members_ou: OrganizationalUnit) ->
         password="P@ssword2026!",
         ou=members_ou.dn,
     )
-    
+
     try:
         ldap.delete(member)
     except LDAPNoSuchObjectResult:
         pass
-    
+
     with pytest.raises(LDAPNoSuchObjectResult):
         ldap.delete(member)
 
     ldap.create(member)
     with pytest.raises(LDAPEntryAlreadyExistsResult):
         ldap.create(member)
-        
-    member = ldap.fetch(member)
-    assert isinstance(member, User)
+
+    assert ldap.is_synced(member)
+
+    member.first_name = "First Name"
+    member.last_name = "Last Name"
+    assert not ldap.is_synced(member)
 
     ldap.delete(member)
     with pytest.raises(LDAPNoSuchObjectResult):
@@ -146,7 +149,7 @@ def test_create_delete_group(ldap: LdapClient, committees_ou: OrganizationalUnit
         name="Test Group",
         description="This is a test group.",
     )
-    
+
     try:
         ldap.delete(group)
     except LDAPNoSuchObjectResult:
@@ -158,9 +161,11 @@ def test_create_delete_group(ldap: LdapClient, committees_ou: OrganizationalUnit
     ldap.create(group)
     with pytest.raises(LDAPEntryAlreadyExistsResult):
         ldap.create(group)
-        
-    group = ldap.fetch(group)
-    assert isinstance(group, Group)
+
+    assert ldap.is_synced(group)
+
+    group.name = "Updated Test Group"
+    assert not ldap.is_synced(group)
 
     ldap.delete(group)
     with pytest.raises(LDAPNoSuchObjectResult):
@@ -180,7 +185,7 @@ def test_add_to_remove_from_group(ldap: LdapClient, member: User, committee: Gro
     ldap.remove_from_group(member, committee)
     with pytest.raises(LDAPUnwillingToPerformResult):
         ldap.remove_from_group(member, committee)
-        
+
     fake_member = User(
         cn="9999",
         account_name="s9999999",
