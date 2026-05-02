@@ -1,9 +1,16 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from collections.abc import AsyncIterator, Sequence
+from collections.abc import Sequence, Set
 from types import TracebackType
-from typing import Optional
+from typing import Generic, Optional, TypeVar, Union
+
+DESTINATION_TYPE = TypeVar("DESTINATION_TYPE", bound="DestinationClient")
+
+DESTINATION_GROUP_TYPE = TypeVar("DESTINATION_GROUP_TYPE", bound="DestinationGroup")
+DESTINATION_USER_TYPE = TypeVar("DESTINATION_USER_TYPE", bound="DestinationUser")
+SOURCE_GROUP_TYPE = TypeVar("SOURCE_GROUP_TYPE", bound="SourceGroup")
+SOURCE_USER_TYPE = TypeVar("SOURCE_USER_TYPE", bound="SourceUser")
 
 
 class DestinationClient(ABC):
@@ -32,16 +39,13 @@ class DestinationClient(ABC):
     ) -> Optional[bool]: ...
 
 
-class SourceClient(ABC):
+class SourceClient(ABC, Generic[SOURCE_GROUP_TYPE, SOURCE_USER_TYPE]):
 
     @abstractmethod
-    async def get_groups(self) -> Sequence[SourceGroup]: ...
+    async def get_groups(self) -> Sequence[SOURCE_GROUP_TYPE]: ...
 
     @abstractmethod
-    async def get_group_members(self, group: SourceGroup) -> AsyncIterator[SourceModel]: ...
-
-    @abstractmethod
-    async def __aenter__(self) -> SourceClient: ...
+    async def __aenter__(self) -> SourceClient[SOURCE_GROUP_TYPE, SOURCE_USER_TYPE]: ...
 
     @abstractmethod
     async def __aexit__(

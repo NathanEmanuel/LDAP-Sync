@@ -1,6 +1,6 @@
 import asyncio
 import math
-from collections.abc import AsyncIterator, Awaitable, Sequence
+from collections.abc import AsyncIterator, Awaitable
 from datetime import date
 from typing import Generic, Protocol, TypeVar
 
@@ -23,7 +23,7 @@ class PaginatedCallable(Protocol[T]):
     def __call__(self, *args, page: int = 1, **kwargs) -> Awaitable[Page[T]]: ...
 
 
-class CongressusClient(SourceClient):
+class CongressusClient(SourceClient[GroupWithMemberships, Member]):
 
     def __init__(
         self,
@@ -46,11 +46,16 @@ class CongressusClient(SourceClient):
 
     # region Sync
 
-    async def get_groups(self) -> Sequence[SourceGroup]:
-        return await self.list_active_committees()
+    async def get_groups(self):
+        groups = await self.list_active_committees()
+        tasks = [self._get_group_with_members(g) for g in groups]
+        return await asyncio.gather(*tasks)
 
-    async def get_group_members(self, group: SourceGroup) -> AsyncIterator[SourceUser]:
-        return self.list_groups_active_members(int(group.get_id()))
+    async def _get_group_with_members(self, group: Group) -> GroupWithMemberships:
+        group = await self.retrieve_group(int(group.get_id()))
+        members = {m async for m in self.list_groups_active_members(int(group.get_id()))}
+        group.set_members(members)
+        return group
 
     # endregion
 
