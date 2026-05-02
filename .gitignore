@@ -8,3 +8,4 @@ __pycache__/
 .responses/
 build/
 *.drawio.bkp
+*.vpp.bak*
