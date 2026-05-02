@@ -1,82 +1,18 @@
 from __future__ import annotations
 
+import logging
 import secrets
-from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
-from typing import ClassVar, Optional, Type, TypeVar
+from typing import ClassVar, Optional, Union
 
+from ldap3 import MODIFY_ADD, MODIFY_DELETE, MODIFY_REPLACE
 from ldap3 import Entry as RawEntry
+from ldap3.core.exceptions import LDAPNoSuchObjectResult
 
+from directories.active_directory.active_directory_client import ActiveDirectoryClient, Entry
 from directories.active_directory.enums import GroupType, UserAccountControl
-from sync.types import DestinationClient, DestinationGroup, DestinationModel, DestinationUser
-
-ENTRY_TYPE = TypeVar("ENTRY_TYPE", bound="Entry")
-
-
-@dataclass
-class Entry(ABC):
-    cn: str
-    ou: str
-    object_class: ClassVar[str]
-
-    @property
-    def dn(self) -> str:
-        return f"CN={self.cn},{self.ou}"
-
-    def get_id(self) -> str:
-        return self.cn
-
-    def get_object_class(self) -> str:
-        return self.object_class
-
-    @abstractmethod
-    def get_name(self) -> str:
-        """Not the same as 'name' in AD!"""
-        ...
-
-    @abstractmethod
-    def serialize_for_creation(self) -> dict: ...
-
-    @classmethod
-    @abstractmethod
-    def from_raw_entry(cls: Type[ENTRY_TYPE], ou: str, entry: RawEntry) -> ENTRY_TYPE: ...
-
-
-
-
-
-@dataclass
-class Group(Entry, DestinationGroup):
-
-    object_class: ClassVar[str] = "group"
-    name: str
-    description: Optional[str]
-
-    @property
-    def account_name(self) -> str:
-        return self.name.replace("/", "-")
-
-    def get_name(self) -> str:
-        return self.name
-
-    def serialize_for_creation(self) -> dict:
-        return {
-            "cn": self.cn,
-            "objectClass": ["top", "group"],
-            "sAMAccountName": self.account_name,
-            "description": self.description or "No description.",  # LDAP doesn't allow empty strings, so we provide a default
-            "groupType": int(GroupType.GLOBAL_SECURITY),
-        }
-
-    def create_in(self, destination: DestinationClient) -> None:
-        destination.create_group(self)
-
-    def add(self, member: DestinationModel, destination: DestinationClient) -> None:
-        destination.add_to_group(member, self)
-
-    @classmethod
-    def from_raw_entry(cls, ou: str, entry: RawEntry) -> Group:
-        return Group(entry.cn.value, ou, entry.sAMAccountName.value, entry.description.value)
+from sync.exceptions import NoSuchGroupMemberException
+from sync.types import DestinationGroup, DestinationUser
 
 
 @dataclass
@@ -103,6 +39,68 @@ class OrganizationalUnit(Entry):
     @classmethod
     def from_raw_entry(cls, ou: str, entry: RawEntry) -> OrganizationalUnit:
         raise NotImplementedError  # TODO
+
+
+@dataclass
+class ADGroup(Entry, DestinationGroup):
+
+    object_class: ClassVar[str] = "group"
+    name: str
+    description: Optional[str]
+    member_dns: set[str]
+
+    @property
+    def account_name(self) -> str:
+        return self.name.replace("/", "-")
+
+    def get_name(self) -> str:
+        return self.name
+
+    def serialize_for_creation(self) -> dict:
+        return {
+            "cn": self.cn,
+            "objectClass": ["top", "group"],
+            "sAMAccountName": self.account_name,
+            "description": self.description or "No description.",  # LDAP doesn't allow empty strings, so we provide a default
+            "groupType": int(GroupType.GLOBAL_SECURITY),
+        }
+
+    @classmethod
+    def from_raw_entry(cls, ou: str, entry: RawEntry) -> ADGroup:
+        return ADGroup(
+            entry.cn.value,
+            ou,
+            entry.sAMAccountName.value,
+            entry.description.value,
+            set(entry.member.values),
+        )
+
+    def is_synced_in(self, destination: ActiveDirectoryClient) -> bool:
+        remote_self = self.fetch_in(destination)
+        return remote_self == self
+
+    def fetch_in(self, destination: ActiveDirectoryClient) -> ADGroup:
+        return destination.fetch(self)
+
+    def create_in(self, destination: ActiveDirectoryClient) -> None:
+        destination.create(self, autocreate_ou=True)
+        logging.info(f"Created group {self.get_name()}")
+
+    def add_member_in(self, directory: ActiveDirectoryClient, member: Union[ADGroup, ADUser]) -> None:
+        try:
+            directory.modify(self, {"member": [(MODIFY_ADD, [member.dn])]})
+            self.member_dns.add(member.dn)
+            logging.info(f"Added {member.get_name()} to group {self.get_name()}")
+        except LDAPNoSuchObjectResult as e:
+            raise NoSuchGroupMemberException from e
+
+    def remove_member_in(self, directory: ActiveDirectoryClient, member: Union[ADGroup, ADUser]) -> None:
+        try:
+            directory.modify(self, {"member": [(MODIFY_DELETE, [member.dn])]})
+            self.member_dns.remove(member.dn)
+            logging.info(f"Removed {member.get_name()} from group {self.get_name()}")
+        except LDAPNoSuchObjectResult as e:
+            raise NoSuchGroupMemberException from e
 
 
 @dataclass
@@ -157,7 +155,24 @@ class ADUser(Entry, DestinationUser):
     def from_raw_entry(cls, ou: str, entry: RawEntry) -> ADUser:
         return ADUser(entry.cn.value, ou, entry.sAMAccountName.value, entry.givenName.value, entry.sn.value, None)
 
-    def create_in(self, destination: DestinationClient) -> None:
-        destination.create_user(self)
+    def is_synced_in(self, destination: ActiveDirectoryClient) -> bool:
+        remote_self = self.fetch_in(destination)
+        return remote_self == self
 
+    def fetch_in(self, destination: ActiveDirectoryClient) -> ADUser:
+        return destination.fetch(self)
 
+    def create_in(self, destination: ActiveDirectoryClient) -> None:
+        destination.create(self, autocreate_ou=True)
+        logging.info(f"Created user {self.get_name()}")
+
+    def modify_uac_in(self, directory: ActiveDirectoryClient, uac: UserAccountControl) -> None:
+        directory.modify(self, {"userAccountControl": [(MODIFY_REPLACE, [int(uac)])]})
+
+    def enable_in(self, directory: ActiveDirectoryClient) -> None:
+        self.modify_uac_in(directory, UserAccountControl.NORMAL_ACCOUNT)
+        logging.info(f"Enabled user {self.get_name()}")
+
+    def disable_in(self, directory: ActiveDirectoryClient) -> None:
+        self.modify_uac_in(directory, UserAccountControl.NORMAL_ACCOUNT | UserAccountControl.ACCOUNTDISABLE)
+        logging.info(f"Disabled user {self.get_name()}")

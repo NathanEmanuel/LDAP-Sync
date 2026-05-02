@@ -146,9 +146,6 @@ class Group(BaseModel, Expirable):
     def get_name(self) -> str:
         return self.name
 
-    def convert_with(self, model_converter: ModelConverter) -> DestinationModel:
-        return model_converter.convert_group(self)
-
     def is_current(self) -> bool:
         return self.end is None or self.end > Date.today()
 
@@ -249,9 +246,6 @@ class Member(BaseModel, SourceUser, Expirable):
 
     def get_name(self) -> str:
         return f"{self.first_name} {self.primary_last_name}" if self.first_name and self.primary_last_name else self.username
-
-    def convert_with(self, model_converter: ModelConverter) -> DestinationModel:
-        return model_converter.convert_user(self)
 
     def is_current(self) -> bool:
         return not self.deleted and not self.locked and self.status.is_current()

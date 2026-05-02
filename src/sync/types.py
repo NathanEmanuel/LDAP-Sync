@@ -3,7 +3,7 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from collections.abc import Sequence, Set
 from types import TracebackType
-from typing import Generic, Optional, TypeVar, Union
+from typing import Generic, Optional, TypeVar, Union, overload
 
 DESTINATION_TYPE = TypeVar("DESTINATION_TYPE", bound="DestinationClient")
 
@@ -14,18 +14,6 @@ SOURCE_USER_TYPE = TypeVar("SOURCE_USER_TYPE", bound="SourceUser")
 
 
 class DestinationClient(ABC):
-
-    @abstractmethod
-    def is_synced(self, entry: DestinationModel) -> bool: ...
-
-    @abstractmethod
-    def create_group(self, group: DestinationGroup) -> None: ...
-
-    @abstractmethod
-    def create_user(self, user: DestinationUser) -> None: ...
-
-    @abstractmethod
-    def add_to_group(self, member: DestinationModel, group: DestinationGroup) -> None: ...
 
     @abstractmethod
     def __enter__(self) -> DestinationClient: ...
@@ -56,13 +44,24 @@ class SourceClient(ABC, Generic[SOURCE_GROUP_TYPE, SOURCE_USER_TYPE]):
     ) -> Optional[bool]: ...
 
 
-class ModelConverter(ABC):
+class ModelConverter(
+    ABC, Generic[SOURCE_GROUP_TYPE, SOURCE_USER_TYPE, DESTINATION_TYPE, DESTINATION_GROUP_TYPE, DESTINATION_USER_TYPE]
+):
+
+    @overload
+    def convert(
+        self, entry: SourceGroup[SOURCE_GROUP_TYPE, SOURCE_USER_TYPE]
+    ) -> DestinationGroup[DESTINATION_TYPE, DESTINATION_GROUP_TYPE, DESTINATION_USER_TYPE]: ...
+
+    @overload
+    def convert(self, entry: SOURCE_USER_TYPE) -> DestinationUser[DESTINATION_TYPE]: ...
 
     @abstractmethod
-    def convert_group(self, group: SourceGroup) -> DestinationGroup: ...
-
-    @abstractmethod
-    def convert_user(self, user: SourceUser) -> DestinationUser: ...
+    def convert(
+        self, entry: Union[SourceGroup[SOURCE_GROUP_TYPE, SOURCE_USER_TYPE], SOURCE_USER_TYPE]
+    ) -> Union[
+        DestinationGroup[DESTINATION_TYPE, DESTINATION_GROUP_TYPE, DESTINATION_USER_TYPE], DestinationUser[DESTINATION_TYPE]
+    ]: ...
 
 
 class Syncable(ABC):
@@ -75,30 +74,40 @@ class Syncable(ABC):
 
 
 class SourceModel(Syncable):
-
-    @abstractmethod
-    def convert_with(self, model_converter: ModelConverter) -> DestinationModel: ...
-
-
-class DestinationModel(Syncable):
-
-    @abstractmethod
-    def create_in(self, destination: DestinationClient) -> None: ...
-
-
-class SourceGroup(SourceModel):
     pass
 
 
-class DestinationGroup(DestinationModel):
+class DestinationModel(Syncable, Generic[DESTINATION_TYPE]):
 
     @abstractmethod
-    def add(self, member: DestinationModel, destination: DestinationClient) -> None: ...
+    def is_synced_in(self, destination: DESTINATION_TYPE) -> bool: ...
+
+    @abstractmethod
+    def fetch_in(self, destination: DESTINATION_TYPE) -> DestinationModel[DESTINATION_TYPE]: ...
+
+    @abstractmethod
+    def create_in(self, destination: DESTINATION_TYPE) -> None: ...
+
+
+class SourceGroup(SourceModel, Generic[SOURCE_GROUP_TYPE, SOURCE_USER_TYPE]):
+
+    @abstractmethod
+    def get_members(self) -> Set[Union[SOURCE_GROUP_TYPE, SOURCE_USER_TYPE]]: ...
+
+
+class DestinationGroup(
+    DestinationModel[DESTINATION_TYPE], Generic[DESTINATION_TYPE, DESTINATION_GROUP_TYPE, DESTINATION_USER_TYPE]
+):
+
+    @abstractmethod
+    def add_member_in(
+        self, directory: DESTINATION_TYPE, member: Union[DESTINATION_GROUP_TYPE, DESTINATION_USER_TYPE]
+    ) -> None: ...
 
 
 class SourceUser(SourceModel):
     pass
 
 
-class DestinationUser(DestinationModel):
+class DestinationUser(DestinationModel[DESTINATION_TYPE], Generic[DESTINATION_TYPE]):
     pass

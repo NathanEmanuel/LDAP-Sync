@@ -1,17 +1,47 @@
 import logging
 import ssl
-from typing import TypeVar, Union
+from abc import ABC, abstractmethod
+from dataclasses import dataclass
+from typing import ClassVar, Type, TypeVar
 
-import ldap3.core.exceptions as ldap3_exceptions
-from ldap3 import ALL, MODIFY_ADD, MODIFY_DELETE, MODIFY_REPLACE, Connection, ObjectDef, Reader, Server, Tls
+from ldap3 import ALL, Connection
+from ldap3 import Entry as RawEntry
+from ldap3 import ObjectDef, Reader, Server, Tls
+from ldap3.core.exceptions import LDAPBindError, LDAPEntryAlreadyExistsResult, LDAPNoSuchObjectResult
 
-from directories.active_directory.enums import UserAccountControl
-from directories.active_directory.schemas import Entry, Group, ADUser
-from sync.exceptions import AlreadyExistsException, NoSuchGroupMemberException
-from sync.types import DestinationClient, DestinationGroup, DestinationModel, DestinationUser
+from sync.exceptions import AlreadyExistsException
+from sync.types import DestinationClient
+
+ENTRY_TYPE = TypeVar("ENTRY_TYPE", bound="Entry")
 
 
-DESTINATION_MODEL_TYPE = TypeVar("DESTINATION_MODEL_TYPE", bound=DestinationModel)
+@dataclass
+class Entry(ABC):
+    cn: str
+    ou: str
+    object_class: ClassVar[str]
+
+    @property
+    def dn(self) -> str:
+        return f"CN={self.cn},{self.ou}"
+
+    def get_id(self) -> str:
+        return self.cn
+
+    def get_object_class(self) -> str:
+        return self.object_class
+
+    @abstractmethod
+    def get_name(self) -> str:
+        """Not the same as 'name' in AD!"""
+        ...
+
+    @abstractmethod
+    def serialize_for_creation(self) -> dict: ...
+
+    @classmethod
+    @abstractmethod
+    def from_raw_entry(cls: Type[ENTRY_TYPE], ou: str, entry: RawEntry) -> ENTRY_TYPE: ...
 
 
 class ActiveDirectoryClient(DestinationClient):
@@ -22,45 +52,14 @@ class ActiveDirectoryClient(DestinationClient):
         self._admin_dn = admin_dn
         self._admin_pw = admin_pw
 
-    # region Sync
+    def __enter__(self):
+        self.bind()
+        return self
 
-    def is_synced(self, entry: DestinationModel) -> bool:
-        local_entry = self._fetch(entry)
-        return local_entry == entry
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        self.unbind()
 
-    def _fetch(self, entry: DESTINATION_MODEL_TYPE) -> DESTINATION_MODEL_TYPE:
-        assert isinstance(entry, Entry)
-        obj = ObjectDef(entry.object_class, self.get_connection())
-        obj += "sAMAccountName"
-        reader = Reader(self.get_connection(), obj, entry.dn)
-        reader.search()
-        return entry.from_raw_entry(entry.ou, reader[0])
-
-    def create_group(self, group: DestinationGroup) -> None:
-        assert isinstance(group, Group)
-        try:
-            self.create(group, autocreate_ou=True)
-        except ldap3_exceptions.LDAPEntryAlreadyExistsResult as e:
-            raise AlreadyExistsException from e
-
-    def create_user(self, user: DestinationUser) -> None:
-        assert isinstance(user, ADUser)
-        try:
-            self.create(user, autocreate_ou=True)
-        except ldap3_exceptions.LDAPEntryAlreadyExistsResult as e:
-            raise AlreadyExistsException from e
-
-    def add_to_group(self, member: DestinationModel, group: DestinationGroup) -> None:
-        assert isinstance(member, (ADUser, Group))
-        assert isinstance(group, Group)
-        try:
-            self._add_to_group(member, group)
-        except ldap3_exceptions.LDAPEntryAlreadyExistsResult as e:
-            raise AlreadyExistsException from e
-        except ldap3_exceptions.LDAPNoSuchObjectResult as e:
-            raise NoSuchGroupMemberException from e
-
-    # endregion
+    # region Connection
 
     def bind(self) -> None:
         tls = Tls(validate=ssl.CERT_NONE)  # ignore certificate validation
@@ -71,7 +70,7 @@ class ActiveDirectoryClient(DestinationClient):
                 server, user=self._admin_dn, password=self._admin_pw, auto_bind=True, raise_exceptions=True
             )
             logging.debug("Bound to Directory Server.")
-        except ldap3_exceptions.LDAPBindError as e:
+        except LDAPBindError as e:
             logging.error(f"Failed to bind to Directory Server: {e}")
             raise
 
@@ -83,18 +82,33 @@ class ActiveDirectoryClient(DestinationClient):
 
     def get_connection(self) -> Connection:
         if not self._connection:
-            raise ldap3_exceptions.LDAPBindError(
-                "Not connected to Directory Server. Use context manager or call bind() first."
-            )
+            raise LDAPBindError("Not connected to Directory Server. Use context manager or call bind() first.")
 
         return self._connection
 
-    def create(self, entry: Entry, autocreate_ou: bool = False) -> None:
+    # endregion
+
+    # region CRUD
+
+    def fetch(self, entry: ENTRY_TYPE) -> ENTRY_TYPE:
+        obj = ObjectDef(entry.object_class, self.get_connection())
+        obj += "sAMAccountName"
+        obj += "member"  # for groups, will be ignored for users
+        reader = Reader(self.get_connection(), obj, entry.dn)
+        reader.search()
+        return entry.from_raw_entry(entry.ou, reader[0])
+
+    def create(self, entry: Entry, autocreate_ou: bool = False, ignore_existing: bool = False) -> None:
         if autocreate_ou:
             self._create_ou(entry.ou, ignore_existing=True)
 
-        self.get_connection().add(entry.dn, attributes=entry.serialize_for_creation())
-        logging.info(f"Created {type(entry).__name__} {entry.get_name()}")
+        try:
+            self.get_connection().add(entry.dn, attributes=entry.serialize_for_creation())
+        except LDAPEntryAlreadyExistsResult as e:
+            if ignore_existing:
+                logging.debug(f"Entry {entry.dn} already exists. Skipping creation.")
+                return
+            raise AlreadyExistsException from e
 
     def _create_ou(self, ou: str, ignore_existing: bool = False) -> bool:
         ou_components = ou.split(",")
@@ -105,45 +119,29 @@ class ActiveDirectoryClient(DestinationClient):
         try:
             self.get_connection().add(ou, attributes={"objectClass": ["top", "organizationalUnit"]})
             return True
-        except ldap3_exceptions.LDAPEntryAlreadyExistsResult:
+        except LDAPEntryAlreadyExistsResult:
             if ignore_existing:
                 logging.debug(f"OU {ou} already exists. Skipping creation.")
                 return False
             raise
-        except ldap3_exceptions.LDAPNoSuchObjectResult:
+        except LDAPNoSuchObjectResult:
             self._create_ou(",".join(ou_components[1:]), ignore_existing)
             self.get_connection().add(ou, attributes={"objectClass": ["top", "organizationalUnit"]})
             return True
 
-    def delete(self, entry: Entry) -> None:
-        self.get_connection().delete(entry.dn)
-        logging.info(f"Deleted {type(entry).__name__} {entry.get_name()}")
+    def modify(self, entry: Entry, changes: dict) -> None:
+        try:
+            self.get_connection().modify(entry.dn, changes)
+        except LDAPEntryAlreadyExistsResult as e:
+            raise AlreadyExistsException from e
 
-    def enable_user(self, user: ADUser) -> None:
-        self.modify_user_uac(user, UserAccountControl.NORMAL_ACCOUNT)
-
-    def disable_user(self, user: ADUser) -> None:
-        self.modify_user_uac(user, (UserAccountControl.NORMAL_ACCOUNT | UserAccountControl.ACCOUNTDISABLE))
-
-    def modify_user_uac(self, user: ADUser, uac: UserAccountControl):
-        self.get_connection().modify(user.dn, {"userAccountControl": [(MODIFY_REPLACE, [int(uac)])]})
-        logging.info(f"Modified user {user.dn} with UAC {uac}")
-
-    def _add_to_group(self, member: Union[ADUser, Group], group: Group) -> None:
-        self.get_connection().modify(group.dn, {"member": [(MODIFY_ADD, [member.dn])]})
-        logging.info(f"Added {type(member).__name__} {member.get_name()} to {type(group).__name__} {group.get_name()}")
-
-    def remove_from_group(self, member: Union[ADUser, Group], group: Group) -> None:
-        self.get_connection().modify(group.dn, {"member": [(MODIFY_DELETE, [member.dn])]})
-        logging.info(f"Removed {type(member).__name__} {member.get_name()} from {type(group).__name__} {group.get_name()}")
-
-    # region Context manager
-
-    def __enter__(self):
-        self.bind()
-        return self
-
-    def __exit__(self, exc_type, exc_val, exc_tb):
-        self.unbind()
+    def delete(self, entry: Entry, ignore_nonexistent: bool = False) -> None:
+        try:
+            self.get_connection().delete(entry.dn)
+        except LDAPNoSuchObjectResult:
+            if ignore_nonexistent:
+                logging.debug(f"Entry {entry.dn} does not exist. Skipping deletion.")
+                return
+            raise
 
     # endregion

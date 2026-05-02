@@ -1,20 +1,38 @@
+from __future__ import annotations
+
 import asyncio
 import logging
+from types import TracebackType
+from typing import Generic, Union, cast
 
 from sync.exceptions import AlreadyExistsException, NoSuchGroupMemberException
 from sync.types import (
-    DestinationClient,
+    DESTINATION_GROUP_TYPE,
+    DESTINATION_TYPE,
+    DESTINATION_USER_TYPE,
+    SOURCE_GROUP_TYPE,
+    SOURCE_USER_TYPE,
     DestinationGroup,
     DestinationModel,
+    DestinationUser,
     ModelConverter,
     SourceClient,
     SourceGroup,
 )
 
 
-class AccountSyncer:
+class AccountSyncer(
+    Generic[SOURCE_GROUP_TYPE, SOURCE_USER_TYPE, DESTINATION_TYPE, DESTINATION_GROUP_TYPE, DESTINATION_USER_TYPE]
+):
 
-    def __init__(self, source_client: SourceClient, destination_client: DestinationClient, model_converter: ModelConverter):
+    def __init__(
+        self,
+        source_client: SourceClient[SOURCE_GROUP_TYPE, SOURCE_USER_TYPE],
+        destination_client: DESTINATION_TYPE,
+        model_converter: ModelConverter[
+            SOURCE_GROUP_TYPE, SOURCE_USER_TYPE, DESTINATION_TYPE, DESTINATION_GROUP_TYPE, DESTINATION_USER_TYPE
+        ],
+    ):
         self._source = source_client
         self._destination = destination_client
         self._model_converter = model_converter
@@ -26,17 +44,17 @@ class AccountSyncer:
         await self._sync_groups(list(groups), dry_run=dry_run)
         logging.info("Full sync completed.")
 
-    async def _sync_groups(self, groups: list[SourceGroup], dry_run: bool = False) -> None:
+    async def _sync_groups(self, groups: list[SOURCE_GROUP_TYPE], dry_run: bool = False) -> None:
         tasks = [self._sync_group(group, dry_run) for group in groups]
         if tasks:
             await asyncio.gather(*tasks)
 
-    async def _sync_group(self, source_group: SourceGroup, dry_run: bool = False) -> None:
-        destination_group = self._model_converter.convert_group(source_group)
+    async def _sync_group(self, source_group: SourceGroup[SOURCE_GROUP_TYPE, SOURCE_USER_TYPE], dry_run: bool = False) -> None:
+        destination_group = self._model_converter.convert(source_group)
 
         if not dry_run:
             try:
-                self._destination.create_group(destination_group)
+                destination_group.create_in(self._destination)
             except AlreadyExistsException:
                 logging.debug(f"Group {destination_group.get_name()} already exists. Skipping creation.")
 
@@ -44,33 +62,43 @@ class AccountSyncer:
 
         logging.debug(f"Synced group: {destination_group.get_name()} (ID: {destination_group.get_id()})")
 
-    async def _sync_group_memberships(self, source_group: SourceGroup, dry_run: bool = False) -> None:
-        destination_group = self._model_converter.convert_group(source_group)
+    async def _sync_group_memberships(
+        self, source_group: SourceGroup[SOURCE_GROUP_TYPE, SOURCE_USER_TYPE], dry_run: bool = False
+    ) -> None:
+
+        destination_group = self._model_converter.convert(source_group)
         tasks = []
-        async for source_member in await self._source.get_group_members(source_group):
+        for source_member in source_group.get_members():
 
             if dry_run:
                 logging.info(f"Would sync {source_member.get_name()} to {source_group.get_name()}")
                 continue
 
-            destination_member = source_member.convert_with(self._model_converter)
+            destination_member = self._model_converter.convert(source_member)
             tasks.append(asyncio.create_task(self._sync_member_to_group(destination_member, destination_group)))
 
-        if tasks:
-            await asyncio.gather(*tasks)
+        await asyncio.gather(*tasks)
 
-    async def _sync_member_to_group(self, member: DestinationModel, group: DestinationGroup) -> None:
+    async def _sync_member_to_group(
+        self,
+        member: Union[
+            DestinationGroup[DESTINATION_TYPE, DESTINATION_GROUP_TYPE, DESTINATION_USER_TYPE], DestinationUser[DESTINATION_TYPE]
+        ],
+        group: DestinationGroup[DESTINATION_TYPE, DESTINATION_GROUP_TYPE, DESTINATION_USER_TYPE],
+    ) -> None:
+
         async with self._get_destination_lock(int(member.get_id())):
+            member = cast(Union[DESTINATION_GROUP_TYPE, DESTINATION_USER_TYPE], member)
             try:
-                group.add(member, self._destination)
+                group.add_member_in(self._destination, member)
             except NoSuchGroupMemberException:
                 logging.debug(f"{member.get_name()} does not exist. Creating account and adding to {group.get_name()}...")
                 await self._create_group_member(member)
-                group.add(member, self._destination)
+                group.add_member_in(self._destination, member)
             except AlreadyExistsException:
                 logging.debug(f"{member.get_name()} is already a member of {group.get_name()}. Skipping.")
 
-    async def _create_group_member(self, member: DestinationModel) -> None:
+    async def _create_group_member(self, member: DestinationModel[DESTINATION_TYPE]) -> None:
         member.create_in(self._destination)
 
     def _get_destination_lock(self, id: int) -> asyncio.Lock:
@@ -80,11 +108,18 @@ class AccountSyncer:
 
     # region Context Manager
 
-    async def __aenter__(self) -> "AccountSyncer":
+    async def __aenter__(
+        self,
+    ) -> AccountSyncer[SOURCE_GROUP_TYPE, SOURCE_USER_TYPE, DESTINATION_TYPE, DESTINATION_GROUP_TYPE, DESTINATION_USER_TYPE]:
         self._destination.__enter__()
         return self
 
-    async def __aexit__(self, exc_type, exc_val, exc_tb) -> None:
+    async def __aexit__(
+        self,
+        exc_type: type[BaseException] | None,
+        exc_val: BaseException | None,
+        exc_tb: TracebackType | None,
+    ) -> None:
         self._destination.__exit__(exc_type, exc_val, exc_tb)
 
     # endregion

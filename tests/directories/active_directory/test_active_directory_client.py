@@ -4,7 +4,6 @@ from collections.abc import Generator
 import pytest
 from dotenv import load_dotenv
 from ldap3.core.exceptions import (
-    LDAPEntryAlreadyExistsResult,
     LDAPInvalidCredentialsResult,
     LDAPNoSuchAttributeResult,
     LDAPNoSuchObjectResult,
@@ -12,48 +11,38 @@ from ldap3.core.exceptions import (
 )
 
 from directories.active_directory import ActiveDirectoryClient
-from directories.active_directory.schemas import Group, OrganizationalUnit, ADUser
+from directories.active_directory.schemas import ADGroup, OrganizationalUnit, ADUser
 from sync.exceptions import AlreadyExistsException, NoSuchGroupMemberException
 
 load_dotenv()
 
 
 @pytest.fixture
-def ad() -> Generator[ActiveDirectoryClient, None, None]:
+def directory() -> Generator[ActiveDirectoryClient, None, None]:
     with ActiveDirectoryClient(os.environ["ADMIN_DN"], os.environ["ADMIN_PW"]) as ad:
         yield ad
 
 
 @pytest.fixture
-def committees_ou(ad: ActiveDirectoryClient) -> Generator[OrganizationalUnit, None, None]:
+def committees_ou(directory: ActiveDirectoryClient) -> Generator[OrganizationalUnit, None, None]:
     ou = OrganizationalUnit(cn="Committees", ou=os.environ["BASE_OU"])
 
-    try:
-        ad.create(ou, autocreate_ou=True)
-    except LDAPEntryAlreadyExistsResult:
-        pass
-
+    directory.create(ou, autocreate_ou=True, ignore_existing=True)
     yield ou
-
-    ad.delete(ou)
+    directory.delete(ou, ignore_nonexistent=True)
 
 
 @pytest.fixture
-def members_ou(ad: ActiveDirectoryClient) -> Generator[OrganizationalUnit, None, None]:
+def members_ou(directory: ActiveDirectoryClient) -> Generator[OrganizationalUnit, None, None]:
     ou = OrganizationalUnit(cn="Members", ou=os.environ["BASE_OU"])
 
-    try:
-        ad.create(ou, autocreate_ou=True)
-    except LDAPEntryAlreadyExistsResult:
-        pass
-
+    directory.create(ou, autocreate_ou=True, ignore_existing=True)
     yield ou
-
-    ad.delete(ou)
+    directory.delete(ou, ignore_nonexistent=True)
 
 
 @pytest.fixture
-def member(ad: ActiveDirectoryClient, members_ou: OrganizationalUnit) -> Generator[ADUser, None, None]:
+def member(directory: ActiveDirectoryClient, members_ou: OrganizationalUnit) -> Generator[ADUser, None, None]:
     member = ADUser(
         cn="5678",
         account_name="s1234567",
@@ -62,27 +51,46 @@ def member(ad: ActiveDirectoryClient, members_ou: OrganizationalUnit) -> Generat
         password="P@ssword2026!",
         ou=members_ou.dn,
     )
-    ad.create(member)
+    
+    directory.create(member, ignore_existing=True)
     yield member
-    ad.delete(member)
+    directory.delete(member, ignore_nonexistent=True)
 
 
 @pytest.fixture
-def committee(ad: ActiveDirectoryClient, committees_ou: OrganizationalUnit) -> Generator[Group, None, None]:
-    committee = Group(
+def group(directory: ActiveDirectoryClient, committees_ou: OrganizationalUnit) -> Generator[ADGroup, None, None]:
+    committee = ADGroup(
         cn="12345",
         ou=committees_ou.dn,
         name="Test Committee",
         description="This is a test committee.",
+        member_dns=set(),
     )
-    ad.create(committee)
+
+    directory.create(committee, ignore_existing=True)
     yield committee
-    ad.delete(committee)
+    directory.delete(committee, ignore_nonexistent=True)
+
+
+@pytest.fixture
+def child_group(directory: ActiveDirectoryClient, committees_ou: OrganizationalUnit) -> Generator[ADGroup, None, None]:
+
+    child_group = ADGroup(
+        cn="8967",
+        ou=committees_ou.dn,
+        name="Child group",
+        description="This group is a member of another group",
+        member_dns=set(),
+    )
+
+    directory.create(child_group, ignore_existing=True)
+    yield child_group
+    directory.delete(child_group, ignore_nonexistent=True)
 
 
 @pytest.mark.integration
-def test_connection(ad: ActiveDirectoryClient) -> None:
-    assert ad.get_connection().bound
+def test_connection(directory: ActiveDirectoryClient) -> None:
+    assert directory.get_connection().bound
 
 
 @pytest.mark.integration
@@ -93,7 +101,7 @@ def test_invalid_credentials() -> None:
 
 
 @pytest.mark.integration
-def test_create_delete_user(ad: ActiveDirectoryClient, members_ou: OrganizationalUnit) -> None:
+def test_create_delete_user(directory: ActiveDirectoryClient, members_ou: OrganizationalUnit) -> None:
     member = ADUser(
         cn="5678",
         account_name="s1234567",
@@ -104,95 +112,110 @@ def test_create_delete_user(ad: ActiveDirectoryClient, members_ou: Organizationa
     )
 
     try:
-        ad.delete(member)
+        directory.delete(member)
     except LDAPNoSuchObjectResult:
         pass
 
     with pytest.raises(LDAPNoSuchObjectResult):
-        ad.delete(member)
+        directory.delete(member)
 
-    ad.create(member)
-    with pytest.raises(LDAPEntryAlreadyExistsResult):
-        ad.create(member)
+    directory.create(member)
+    with pytest.raises(AlreadyExistsException):
+        directory.create(member)
 
-    assert ad.is_synced(member)
+    assert member.is_synced_in(directory)
 
     member.first_name = "First Name"
     member.last_name = "Last Name"
-    assert not ad.is_synced(member)
+    assert not member.is_synced_in(directory)
 
-    ad.delete(member)
+    directory.delete(member)
     with pytest.raises(LDAPNoSuchObjectResult):
-        ad.delete(member)
+        directory.delete(member)
 
 
 @pytest.mark.integration
-def test_disable_user(ad: ActiveDirectoryClient, member: ADUser) -> None:
-    ad.disable_user(member)
-    ad.disable_user(member)
+def test_disable_user(directory: ActiveDirectoryClient, member: ADUser) -> None:
+    member.disable_in(directory)
+    member.disable_in(directory)
 
 
 @pytest.mark.integration
-def test_enable_user(ad: ActiveDirectoryClient, member: ADUser) -> None:
-    ad.disable_user(member)
-    ad.enable_user(member)
-    ad.enable_user(member)
-    ad.disable_user(member)
-    ad.enable_user(member)
-
+def test_enable_user(directory: ActiveDirectoryClient, member: ADUser) -> None:
+    member.disable_in(directory)
+    member.enable_in(directory)
+    member.enable_in(directory)
+    member.disable_in(directory)
+    member.enable_in(directory)
+    member.disable_in(directory)
+    
 
 @pytest.mark.integration
-def test_create_delete_group(ad: ActiveDirectoryClient, committees_ou: OrganizationalUnit) -> None:
-    group = Group(
+def test_create_delete_group(directory: ActiveDirectoryClient, committees_ou: OrganizationalUnit) -> None:
+    group = ADGroup(
         cn="12345",
         ou=committees_ou.dn,
         name="Test Group",
         description="This is a test group.",
+        member_dns=set(),
     )
 
     try:
-        ad.delete(group)
+        directory.delete(group)
     except LDAPNoSuchObjectResult:
         pass
 
     with pytest.raises(LDAPNoSuchObjectResult):
-        ad.delete(group)
+        directory.delete(group)
 
-    ad.create(group)
-    with pytest.raises(LDAPEntryAlreadyExistsResult):
-        ad.create(group)
+    directory.create(group)
+    with pytest.raises(AlreadyExistsException):
+        directory.create(group)
 
-    assert ad.is_synced(group)
+    assert group.is_synced_in(directory)
 
     group.name = "Updated Test Group"
-    assert not ad.is_synced(group)
+    assert not group.is_synced_in(directory)
 
-    ad.delete(group)
+    directory.delete(group)
     with pytest.raises(LDAPNoSuchObjectResult):
-        ad.delete(group)
+        directory.delete(group)
 
 
 @pytest.mark.integration
-def test_add_to_remove_from_group(ad: ActiveDirectoryClient, member: ADUser, committee: Group) -> None:
+def test_add_to_remove_from_group(directory: ActiveDirectoryClient, member: ADUser, group: ADGroup, child_group: ADGroup) -> None:
 
     with pytest.raises(LDAPNoSuchAttributeResult):
-        ad.remove_from_group(member, committee)
+        group.remove_member_in(directory, member)
 
-    ad.add_to_group(member, committee)
+    group.add_member_in(directory, member)
     with pytest.raises(AlreadyExistsException):
-        ad.add_to_group(member, committee)
+        group.add_member_in(directory, member)
 
-    ad.remove_from_group(member, committee)
+    group.add_member_in(directory, child_group)
+    with pytest.raises(AlreadyExistsException):
+        group.add_member_in(directory, child_group)
+
+    assert group.is_synced_in(directory)
+
+    group.remove_member_in(directory, child_group)
     with pytest.raises(LDAPUnwillingToPerformResult):
-        ad.remove_from_group(member, committee)
+        group.remove_member_in(directory, child_group)
+        
+    group.remove_member_in(directory, member)
+    with pytest.raises(LDAPUnwillingToPerformResult):
+        group.remove_member_in(directory, member)
+        
 
+@pytest.mark.integration
+def test_add_to_group_with_nonexistent_member(directory: ActiveDirectoryClient, group: ADGroup) -> None:
     fake_member = ADUser(
         cn="9999",
         account_name="s9999999",
         first_name="Fake",
         last_name="User",
         password="P@ssword2026!",
-        ou=member.ou,
+        ou=group.ou,
     )
     with pytest.raises(NoSuchGroupMemberException):
-        ad.add_to_group(fake_member, committee)
+        group.add_member_in(directory, fake_member)
