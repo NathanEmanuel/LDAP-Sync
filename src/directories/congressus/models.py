@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from abc import ABC, abstractmethod
 from datetime import date as Date
 from datetime import datetime as DateTime
@@ -115,10 +117,10 @@ class GroupMembership(BaseModel, Expirable):
 
 
 class GroupMembershipWithGroup(GroupMembership):
-    group: "Group"
+    group: Group
 
 
-class Group(BaseModel, SourceGroup, Expirable):
+class Group(BaseModel, Expirable):
     id: int
     folder_id: Optional[int] = None
     folder: Optional[Folder] = None
@@ -151,8 +153,15 @@ class Group(BaseModel, SourceGroup, Expirable):
         return self.end is None or self.end > Date.today()
 
 
-class GroupWithMemberships(Group):
+class GroupWithMemberships(Group, SourceGroup):
     memberships: list[GroupMembership]
+    _members: set[Member]
+
+    def get_members(self):
+        return self._members
+
+    def set_members(self, members: set[Member]):
+        self._members = members
 
 
 GroupMembershipWithGroup.model_rebuild()
@@ -246,3 +255,10 @@ class Member(BaseModel, SourceUser, Expirable):
 
     def is_current(self) -> bool:
         return not self.deleted and not self.locked and self.status.is_current()
+
+    def __hash__(self):
+        return hash((type(self), self.id, self.username))
+
+    def __eq__(self, other: object) -> bool:
+        # For sets and dict keys to work, __eq__ must match __hash__ logic
+        return isinstance(other, type(self)) and self.id == other.id and self.username == other.username
