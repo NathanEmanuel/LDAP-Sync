@@ -29,7 +29,7 @@ def committees_ou(directory: ActiveDirectoryClient) -> Generator[OrganizationalU
 
     directory.create(ou, autocreate_ou=True, ignore_existing=True)
     yield ou
-    directory.delete(ou, ignore_nonexistent=True)
+    directory.delete(ou, ignore_nonexistent=True, recursive=True)
 
 
 @pytest.fixture
@@ -38,7 +38,7 @@ def members_ou(directory: ActiveDirectoryClient) -> Generator[OrganizationalUnit
 
     directory.create(ou, autocreate_ou=True, ignore_existing=True)
     yield ou
-    directory.delete(ou, ignore_nonexistent=True)
+    directory.delete(ou, ignore_nonexistent=True, recursive=True)
 
 
 @pytest.fixture
