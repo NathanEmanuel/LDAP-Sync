@@ -25,7 +25,7 @@ def directory() -> Generator[ActiveDirectoryClient, None, None]:
 
 @pytest.fixture
 def committees_ou(directory: ActiveDirectoryClient) -> Generator[OrganizationalUnit, None, None]:
-    ou = OrganizationalUnit(cn="Committees", ou=os.environ["BASE_OU"])
+    ou = OrganizationalUnit(os.environ["COMMITTEES_OU"])
 
     directory.create(ou, autocreate_ou=True, ignore_existing=True)
     yield ou
@@ -34,7 +34,7 @@ def committees_ou(directory: ActiveDirectoryClient) -> Generator[OrganizationalU
 
 @pytest.fixture
 def members_ou(directory: ActiveDirectoryClient) -> Generator[OrganizationalUnit, None, None]:
-    ou = OrganizationalUnit(cn="Members", ou=os.environ["BASE_OU"])
+    ou = OrganizationalUnit(os.environ["MEMBERS_OU"])
 
     directory.create(ou, autocreate_ou=True, ignore_existing=True)
     yield ou
@@ -44,12 +44,11 @@ def members_ou(directory: ActiveDirectoryClient) -> Generator[OrganizationalUnit
 @pytest.fixture
 def member(directory: ActiveDirectoryClient, members_ou: OrganizationalUnit) -> Generator[ADUser, None, None]:
     member = ADUser(
-        cn="5678",
+        dn=f"CN=5678,{members_ou.get_dn()}",
         account_name="s1234567",
         first_name="Nathan",
         last_name="Emanuel",
         password="P@ssword2026!",
-        ou=members_ou.dn,
     )
 
     directory.create(member, ignore_existing=True)
@@ -60,8 +59,7 @@ def member(directory: ActiveDirectoryClient, members_ou: OrganizationalUnit) -> 
 @pytest.fixture
 def group(directory: ActiveDirectoryClient, committees_ou: OrganizationalUnit) -> Generator[ADGroup, None, None]:
     committee = ADGroup(
-        cn="12345",
-        ou=committees_ou.dn,
+        dn=f"CN=12345,{committees_ou.get_dn()}",
         name="Test Committee",
         description="This is a test committee.",
         member_dns=set(),
@@ -76,8 +74,7 @@ def group(directory: ActiveDirectoryClient, committees_ou: OrganizationalUnit) -
 def child_group(directory: ActiveDirectoryClient, committees_ou: OrganizationalUnit) -> Generator[ADGroup, None, None]:
 
     child_group = ADGroup(
-        cn="8967",
-        ou=committees_ou.dn,
+        dn=f"CN=8967,{committees_ou.get_dn()}",
         name="Child group",
         description="This group is a member of another group",
         member_dns=set(),
@@ -103,12 +100,11 @@ def test_invalid_credentials() -> None:
 @pytest.mark.integration
 def test_create_delete_user(directory: ActiveDirectoryClient, members_ou: OrganizationalUnit) -> None:
     member = ADUser(
-        cn="5678",
+        dn=f"CN=5678,{members_ou.get_dn()}",
         account_name="s1234567",
         first_name="Nathan",
         last_name="Emanuel",
         password="P@ssword2026!",
-        ou=members_ou.dn,
     )
 
     try:
@@ -153,8 +149,7 @@ def test_enable_user(directory: ActiveDirectoryClient, member: ADUser) -> None:
 @pytest.mark.integration
 def test_create_delete_group(directory: ActiveDirectoryClient, committees_ou: OrganizationalUnit) -> None:
     group = ADGroup(
-        cn="12345",
-        ou=committees_ou.dn,
+        dn=f"CN=12345,{committees_ou.get_dn()}",
         name="Test Group",
         description="This is a test group.",
         member_dns=set(),
@@ -212,12 +207,11 @@ def test_add_to_remove_from_group(
 @pytest.mark.integration
 def test_add_to_group_with_nonexistent_member(directory: ActiveDirectoryClient, group: ADGroup) -> None:
     fake_member = ADUser(
-        cn="9999",
+        dn=f"CN=9999,{group.ou}",
         account_name="s9999999",
         first_name="Fake",
         last_name="User",
         password="P@ssword2026!",
-        ou=group.ou,
     )
     with pytest.raises(NoSuchGroupMemberException):
         group.add_member_in(directory, fake_member)

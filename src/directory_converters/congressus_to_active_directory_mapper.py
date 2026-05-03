@@ -1,7 +1,7 @@
 from typing import Union, overload
 
 from directories.active_directory.active_directory_client import ActiveDirectoryClient
-from directories.active_directory.schemas import ADGroup, ADUser, Entry as ADEntry
+from directories.active_directory.schemas import ADGroup, ADUser, ADEntry as ADEntry
 from directories.congressus import GroupWithMemberships as CongressusGroup
 from directories.congressus import Member as CongressusMember
 from sync.types import DirectoryMapper, SourceGroup
@@ -38,11 +38,10 @@ class CongressusToActiveDirectoryMapper(
         for m in group.get_members():
             member = self.convert(m)
             assert isinstance(member, ADEntry)
-            member_dns.add(member.dn)
+            member_dns.add(member.get_dn())
 
         return ADGroup(
-            cn=str(group.get_id()),
-            ou=self._build_group_ou(group.model_dump()),
+            dn=f"CN={group.get_id()},{self._build_group_ou(group.model_dump())}",
             name=group.name,
             description=group.description_short,
             member_dns=member_dns,
@@ -58,8 +57,7 @@ class CongressusToActiveDirectoryMapper(
 
     def _convert_user(self, user: CongressusMember) -> ADUser:
         ad_user = ADUser(
-            cn=str(user.get_id()),
-            ou=self._member_ou,
+            dn=f"CN={user.get_id()},{self._member_ou}",
             account_name=user.username,
             first_name=user.first_name or user.nickname or "Unknown",
             last_name=user.last_name or "Unknown",
