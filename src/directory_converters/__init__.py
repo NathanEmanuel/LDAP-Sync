@@ -1,1 +1,1 @@
-from .congressus_to_active_directory_converter import CongressusToActiveDirectoryMapper
+from .congressus_to_active_directory_mapper import CongressusToActiveDirectoryMapper

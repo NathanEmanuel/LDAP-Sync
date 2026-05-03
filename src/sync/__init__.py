@@ -1,2 +1,2 @@
-from .account_syncer import PrincipalSyncer
+from .principal_syncer import PrincipalSyncer
 from .types import *
