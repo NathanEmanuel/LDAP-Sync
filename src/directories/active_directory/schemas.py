@@ -75,15 +75,15 @@ class ADGroup(Entry, DestinationGroup):
             set(entry.member.values),
         )
 
-    def is_synced_in(self, destination: ActiveDirectoryClient) -> bool:
-        remote_self = self.fetch_in(destination)
+    def is_synced_in(self, directory: ActiveDirectoryClient) -> bool:
+        remote_self = self.fetch_in(directory)
         return remote_self == self
 
-    def fetch_in(self, destination: ActiveDirectoryClient) -> ADGroup:
-        return destination.fetch(self)
+    def fetch_in(self, directory: ActiveDirectoryClient) -> ADGroup:
+        return directory.fetch(self)
 
-    def create_in(self, destination: ActiveDirectoryClient) -> None:
-        destination.create(self, autocreate_ou=True)
+    def create_in(self, directory: ActiveDirectoryClient) -> None:
+        directory.create(self, autocreate_ou=True)
         logging.info(f"Created group {self.get_name()}")
 
     def add_member_in(self, directory: ActiveDirectoryClient, member: Union[ADGroup, ADUser]) -> None:
@@ -155,15 +155,15 @@ class ADUser(Entry, DestinationUser):
     def from_raw_entry(cls, ou: str, entry: RawEntry) -> ADUser:
         return ADUser(entry.cn.value, ou, entry.sAMAccountName.value, entry.givenName.value, entry.sn.value, None)
 
-    def is_synced_in(self, destination: ActiveDirectoryClient) -> bool:
-        remote_self = self.fetch_in(destination)
+    def is_synced_in(self, directory: ActiveDirectoryClient) -> bool:
+        remote_self = self.fetch_in(directory)
         return remote_self == self
 
-    def fetch_in(self, destination: ActiveDirectoryClient) -> ADUser:
-        return destination.fetch(self)
+    def fetch_in(self, directory: ActiveDirectoryClient) -> ADUser:
+        return directory.fetch(self)
 
-    def create_in(self, destination: ActiveDirectoryClient) -> None:
-        destination.create(self, autocreate_ou=True)
+    def create_in(self, directory: ActiveDirectoryClient) -> None:
+        directory.create(self, autocreate_ou=True)
         logging.info(f"Created user {self.get_name()}")
 
     def modify_uac_in(self, directory: ActiveDirectoryClient, uac: UserAccountControl) -> None:

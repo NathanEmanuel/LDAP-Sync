@@ -51,7 +51,7 @@ def member(directory: ActiveDirectoryClient, members_ou: OrganizationalUnit) -> 
         password="P@ssword2026!",
         ou=members_ou.dn,
     )
-    
+
     directory.create(member, ignore_existing=True)
     yield member
     directory.delete(member, ignore_nonexistent=True)
@@ -148,7 +148,7 @@ def test_enable_user(directory: ActiveDirectoryClient, member: ADUser) -> None:
     member.disable_in(directory)
     member.enable_in(directory)
     member.disable_in(directory)
-    
+
 
 @pytest.mark.integration
 def test_create_delete_group(directory: ActiveDirectoryClient, committees_ou: OrganizationalUnit) -> None:
@@ -183,7 +183,9 @@ def test_create_delete_group(directory: ActiveDirectoryClient, committees_ou: Or
 
 
 @pytest.mark.integration
-def test_add_to_remove_from_group(directory: ActiveDirectoryClient, member: ADUser, group: ADGroup, child_group: ADGroup) -> None:
+def test_add_to_remove_from_group(
+    directory: ActiveDirectoryClient, member: ADUser, group: ADGroup, child_group: ADGroup
+) -> None:
 
     with pytest.raises(LDAPNoSuchAttributeResult):
         group.remove_member_in(directory, member)
@@ -201,11 +203,11 @@ def test_add_to_remove_from_group(directory: ActiveDirectoryClient, member: ADUs
     group.remove_member_in(directory, child_group)
     with pytest.raises(LDAPUnwillingToPerformResult):
         group.remove_member_in(directory, child_group)
-        
+
     group.remove_member_in(directory, member)
     with pytest.raises(LDAPUnwillingToPerformResult):
         group.remove_member_in(directory, member)
-        
+
 
 @pytest.mark.integration
 def test_add_to_group_with_nonexistent_member(directory: ActiveDirectoryClient, group: ADGroup) -> None:

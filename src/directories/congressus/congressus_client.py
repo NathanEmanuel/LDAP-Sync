@@ -7,7 +7,7 @@ from typing import Generic, Protocol, TypeVar
 import httpx
 
 from directories.congressus.models import *
-from sync.types import SourceClient
+from sync.types import SourceDirectory
 
 T = TypeVar("T")
 PAGE_SIZE = 100
@@ -23,7 +23,7 @@ class PaginatedCallable(Protocol[T]):
     def __call__(self, *args, page: int = 1, **kwargs) -> Awaitable[Page[T]]: ...
 
 
-class CongressusClient(SourceClient[GroupWithMemberships, Member]):
+class CongressusClient(SourceDirectory[GroupWithMemberships, Member]):
 
     def __init__(
         self,

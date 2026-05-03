@@ -7,7 +7,7 @@ from typing import Literal, Optional
 
 from pydantic import BaseModel
 
-from sync.types import DestinationModel, ModelConverter, SourceGroup, SourceUser
+from sync.types import DestinationPrincipal, DirectoryMapper, SourceGroup, SourceUser
 
 
 class Expirable(ABC):

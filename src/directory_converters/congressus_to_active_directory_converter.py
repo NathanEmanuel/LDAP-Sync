@@ -1,14 +1,14 @@
 from typing import Union, overload
 
 from directories.active_directory.active_directory_client import ActiveDirectoryClient
-from directories.active_directory.schemas import ADGroup, ADUser, Entry
+from directories.active_directory.schemas import ADGroup, ADUser, Entry as ADEntry
 from directories.congressus import GroupWithMemberships as CongressusGroup
 from directories.congressus import Member as CongressusMember
-from sync.types import DestinationGroup, DestinationUser, ModelConverter, SourceGroup
+from sync.types import DirectoryMapper, SourceGroup
 
 
-class CongressusToActiveDirectoryConverter(
-    ModelConverter[CongressusGroup, CongressusMember, ActiveDirectoryClient, ADGroup, ADUser]
+class CongressusToActiveDirectoryMapper(
+    DirectoryMapper[CongressusGroup, CongressusMember, ActiveDirectoryClient, ADGroup, ADUser]
 ):
 
     def __init__(self, base_ou: str, member_ou: str):
@@ -16,30 +16,28 @@ class CongressusToActiveDirectoryConverter(
         self._member_ou = member_ou
 
     @overload
-    def convert(
-        self, entry: SourceGroup[CongressusGroup, CongressusMember]
-    ) -> DestinationGroup[ActiveDirectoryClient, ADGroup, ADUser]: ...
+    def convert(self, principal: SourceGroup[CongressusGroup, CongressusMember]) -> ADGroup: ...
 
     @overload
-    def convert(self, entry: CongressusMember) -> DestinationUser[ActiveDirectoryClient]: ...
+    def convert(self, principal: CongressusMember) -> ADUser: ...
 
     def convert(
-        self, entry: Union[SourceGroup[CongressusGroup, CongressusMember], CongressusMember]
-    ) -> Union[DestinationGroup[ActiveDirectoryClient, ADGroup, ADUser], DestinationUser[ActiveDirectoryClient]]:
+        self, principal: Union[SourceGroup[CongressusGroup, CongressusMember], CongressusMember]
+    ) -> Union[ADGroup, ADUser]:
 
-        if isinstance(entry, CongressusGroup):
-            return self._convert_group(entry)
-        elif isinstance(entry, CongressusMember):
-            return self._convert_user(entry)
+        if isinstance(principal, CongressusGroup):
+            return self._convert_group(principal)
+        elif isinstance(principal, CongressusMember):
+            return self._convert_user(principal)
         else:
-            raise ValueError(f"Unsupported entry type: {type(entry)}")
+            raise ValueError(f"Unsupported principal type: {type(principal)}")
 
     def _convert_group(self, group: CongressusGroup) -> ADGroup:
 
         member_dns = set()
         for m in group.get_members():
             member = self.convert(m)
-            assert isinstance(member, Entry)
+            assert isinstance(member, ADEntry)
             member_dns.add(member.dn)
 
         return ADGroup(

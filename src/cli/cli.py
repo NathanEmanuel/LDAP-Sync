@@ -10,8 +10,8 @@ from ldap3.core.exceptions import LDAPBindError
 
 from directories.congressus import CongressusClient
 from directories.active_directory import ActiveDirectoryClient
-from directory_converters import CongressusToActiveDirectoryConverter
-from sync import AccountSyncer
+from directory_converters import CongressusToActiveDirectoryMapper
+from sync import PrincipalSyncer
 
 T = TypeVar("T")
 
@@ -37,11 +37,11 @@ class Cli:
         base_url = env.CONGRESSUS_API_BASE_URL
         api_key = env.CONGRESSUS_API_KEY
         committee_folder_id = int(env.CONGRESSUS_API_COMMITTEE_FOLDER_ID)
-        model_factory = CongressusToActiveDirectoryConverter(base_ou=env.BASE_OU, member_ou=env.MEMBERS_OU)
+        model_factory = CongressusToActiveDirectoryMapper(base_ou=env.BASE_OU, member_ou=env.MEMBERS_OU)
 
         self._congressus_client = CongressusClient(base_url, api_key, committee_folder_id)
         self._active_directory_client = ActiveDirectoryClient(env.ADMIN_DN, env.ADMIN_PW)
-        self._sync = AccountSyncer(self._congressus_client, self._active_directory_client, model_factory)
+        self._sync = PrincipalSyncer(self._congressus_client, self._active_directory_client, model_factory)
 
         # Bug in CPython <3.12 on Windows
         if sys.platform == "win32" and sys.version_info < (3, 12):
@@ -95,7 +95,9 @@ class Cli:
         active_directory = subparsers.add_parser("ad", help="Active Directory operations")
         active_directory_sub = active_directory.add_subparsers(dest="command", required=True)
 
-        check_bind = active_directory_sub.add_parser("check-bind", help="Test Active Directory bind using ADMIN_DN and ADMIN_PW")
+        check_bind = active_directory_sub.add_parser(
+            "check-bind", help="Test Active Directory bind using ADMIN_DN and ADMIN_PW"
+        )
         check_bind.set_defaults(handler=self._ad_check_bind)
 
         return parser

@@ -10,7 +10,7 @@ from ldap3 import ObjectDef, Reader, Server, Tls
 from ldap3.core.exceptions import LDAPBindError, LDAPEntryAlreadyExistsResult, LDAPNoSuchObjectResult
 
 from sync.exceptions import AlreadyExistsException
-from sync.types import DestinationClient
+from sync.types import DestinationDirectory
 
 ENTRY_TYPE = TypeVar("ENTRY_TYPE", bound="Entry")
 
@@ -44,7 +44,7 @@ class Entry(ABC):
     def from_raw_entry(cls: Type[ENTRY_TYPE], ou: str, entry: RawEntry) -> ENTRY_TYPE: ...
 
 
-class ActiveDirectoryClient(DestinationClient):
+class ActiveDirectoryClient(DestinationDirectory):
 
     _connection = None
 
