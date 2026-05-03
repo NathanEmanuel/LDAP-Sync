@@ -10,3 +10,4 @@ build/
 *.drawio.bkp
 *.vpp.bak*
 *.vpp.lck
+.coverage
