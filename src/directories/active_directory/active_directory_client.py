@@ -106,7 +106,7 @@ class ActiveDirectoryClient(DestinationDirectory):
             search_base=entry.get_dn(),
             search_filter="(objectClass=*)",
             search_scope=LEVEL,
-            attributes=["objectClass", "cn", "givenName", "sn", "sAMAccountName", "member"],
+            attributes=["objectClass", "cn", "sAMAccountName", "description", "member", "givenName", "sn", "displayName"],
         )
         return conn.entries
 

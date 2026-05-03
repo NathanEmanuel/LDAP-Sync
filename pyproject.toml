@@ -21,7 +21,17 @@ dirtools = "main:main"
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
-markers = ["integration: tests that hit real external services"]
+addopts = "-x -s --tb=long"
+markers = [
+    "integration: tests that hit real external services",
+    "system: end-to-end system tests (require live dependencies)",
+]
+filterwarnings = [
+    "ignore:tagMap is deprecated:DeprecationWarning",
+    "ignore:typeMap is deprecated:DeprecationWarning",
+]
+log_cli = true
+log_cli_level = "INFO"
 
 [build-system]
 requires = ["setuptools"]

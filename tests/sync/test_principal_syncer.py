@@ -1,4 +1,5 @@
 from collections.abc import AsyncGenerator, Generator
+import logging
 import os
 
 import pytest
@@ -31,7 +32,9 @@ def destination_directory() -> Generator[DestinationDirectory, None, None]:
     base_ou = OrganizationalUnit(os.environ["BASE_OU"])
 
     with directory:
+        logging.info(f"Clearing the destination directory for testing... (base OU: {base_ou.get_dn()})")
         directory.delete(base_ou, ignore_nonexistent=True, recursive=True)
+        logging.info("Destination directory cleared.")
         yield directory
 
 
